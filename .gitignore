@@ -59,3 +59,9 @@ coverage/
 
 # Documentation
 docs/
+
+# Root files excluded from repository
+/bulk_import_templates/
+/README.md
+/package.json
+/package-lock.json
