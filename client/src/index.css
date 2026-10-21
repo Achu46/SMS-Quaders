@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode for Tailwind v4 */
+@custom-variant dark (&:is(.dark, .dark *));
+
+@theme {
+  /* 🎨 Primary Brand Color (Coral) */
+  --color-coral: #ED7751;
+  --color-coral-dark: #D9603B;
+  --color-coral-light: #FBEAE3;
+  --color-coral-glow: rgba(237, 119, 81, 0.35);
+  --color-coral-subtle: rgba(237, 119, 81, 0.08);
+
+  /* ☀️ Light Theme Tokens */
+  --color-cream: #FFFDFB;
+  --color-charcoal: #2B2926;
+  --color-gray-text: #6B6862;
+  --color-grayText: #6B6862;
+  --color-light-gray: #F5F3F0;
+  --color-lightGray: #F5F3F0;
+
+  /* 🌙 Dark Theme Tokens */
+  --color-dark-bg: #181614;
+  --color-darkBg: #181614;
+  --color-dark-card: #22201D;
+  --color-darkCard: #22201D;
+  --color-dark-border: rgba(237, 119, 81, 0.15);
+  --color-darkBorder: rgba(237, 119, 81, 0.15);
+
+  /* Primary Color Scale mapped to Coral */
+  --color-primary-50: #FBEAE3;
+  --color-primary-100: #F7D5C9;
+  --color-primary-200: #F3B7A3;
+  --color-primary-300: #EE987D;
+  --color-primary-400: #EA8464;
+  --color-primary-500: #ED7751; /* Primary Brand Color (Coral) */
+  --color-primary-600: #D9603B; /* Darker Variant */
+  --color-primary-700: #BF4C2A;
+  --color-primary-800: #9B3B1F;
+  --color-primary-900: #782D17;
+  --color-primary-950: #421609;
+
+  /* Orange palette aliased to Coral for existing component skinning */
+  --color-orange-50: #FBEAE3;
+  --color-orange-100: #F7D5C9;
+  --color-orange-200: #F3B7A3;
+  --color-orange-300: #EE987D;
+  --color-orange-400: #EA8464;
+  --color-orange-500: #ED7751;
+  --color-orange-600: #D9603B;
+  --color-orange-700: #BF4C2A;
+  --color-orange-800: #9B3B1F;
+  --color-orange-900: #782D17;
+  --color-orange-950: #421609;
+  
+  --color-surface-dark: #181614;
+  --color-surface-light: #FFFDFB;
+  --color-text-muted: #6B6862;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: #FFFDFB;
+    color: #2B2926;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .dark body, body.dark {
+    background-color: #181614;
+    color: #FFFDFB;
+  }
+  
+  /* Default text color for inputs unless overridden by a utility */
+  input, textarea, select {
+    color: #2B2926;
+  }
+  
+  .dark input, .dark textarea, .dark select,
+  .bg-slate-900 input, .bg-slate-900 textarea, .bg-slate-900 select,
+  .bg-darkCard input, .bg-darkCard textarea, .bg-darkCard select {
+    color: #FFFDFB;
+  }
+}
+
+/* Gradients */
+.gradient-text-coral {
+  background: linear-gradient(135deg, #ED7751 0%, #D9603B 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #ED7751 0%, #D9603B 40%, #2B2926 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .gradient-text {
+  background: linear-gradient(135deg, #FFFDFB 0%, #ED7751 60%, #FBEAE3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glassmorphism utilities */
+@layer utilities {
+  .glass {
+    background: rgba(255, 253, 251, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(237, 119, 81, 0.15);
+    box-shadow: 0 8px 32px rgba(237, 119, 81, 0.05);
+  }
+
+  .glass-card {
+    background: rgba(255, 253, 251, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(237, 119, 81, 0.15);
+  }
+  
+  .glass-dark, .dark .glass-card, .glass-card-dark {
+    background: rgba(32, 29, 26, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(237, 119, 81, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Custom Sleek Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(237, 119, 81, 0.3);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(237, 119, 81, 0.6);
+  }
+}
+
+/* Global Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(237, 119, 81, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(237, 119, 81, 0.5);
+}
+
+@theme {
+  --animate-fade-in-up: fade-in-up 0.8s ease-out;
+  --animate-gradient-x: gradient-x 3s ease infinite;
+
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes gradient-x {
+    0%, 100% {
+      background-size: 200% 200%;
+      background-position: left center;
+    }
+    50% {
+      background-size: 200% 200%;
+      background-position: right center;
+    }
+  }
+
+  --animate-marquee: marquee 15s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  
+  @keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+    100% { transform: translateY(0px); }
+  }
+}
+
+@layer utilities {
+  .hover-pause:hover {
+    animation-play-state: paused;
+  }
+}
+
+/* React Big Calendar Coral Theme Overrides */
+.rbc-calendar { border: none; font-family: 'Inter', system-ui, sans-serif; }
+.rbc-month-view { border: 1px solid rgba(237, 119, 81, 0.15); border-radius: 16px; overflow: hidden; background: #FFFDFB; }
+.rbc-header { padding: 12px 8px; font-weight: 700; color: #6B6862; border-bottom: 1px solid rgba(237, 119, 81, 0.15); border-left: none; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+
+/* React Big Calendar Dark Mode Overrides */
+.dark .rbc-month-view { border-color: rgba(237, 119, 81, 0.2); background: #22201D; }
+.dark .rbc-header { color: #FBEAE3; border-color: rgba(237, 119, 81, 0.2); }
+.dark .rbc-day-bg + .rbc-day-bg { border-color: rgba(237, 119, 81, 0.1); }
+.dark .rbc-month-row + .rbc-month-row { border-color: rgba(237, 119, 81, 0.1); }
+.dark .rbc-off-range-bg { background: #181614; }
+.dark .rbc-today { background: rgba(237, 119, 81, 0.1); }
+.dark .rbc-date-cell { color: #FFFDFB; }
+.dark .rbc-off-range .rbc-date-cell { color: #6B6862; }
+.dark .rbc-btn-group button { color: #FFFDFB; border-color: rgba(237, 119, 81, 0.2); }
+.dark .rbc-btn-group button:hover { background: #ED7751; color: #FFFDFB; }
+.rbc-day-bg + .rbc-day-bg { border-left: 1px solid rgba(237, 119, 81, 0.1); }
+.rbc-month-row + .rbc-month-row { border-top: 1px solid rgba(237, 119, 81, 0.1); }
+.rbc-today { background-color: #FBEAE3; }
+.rbc-off-range-bg { background-color: #F5F3F0; }
+.rbc-event { padding: 4px 8px; font-size: 12px; font-weight: 600; background-color: #ED7751; box-shadow: 0 2px 8px rgba(237, 119, 81, 0.35); transition: all 0.2s; border-radius: 6px; }
+.rbc-event:hover { transform: translateY(-1px); background-color: #D9603B; box-shadow: 0 4px 12px rgba(237, 119, 81, 0.45); }
+.rbc-date-cell { padding: 8px; font-weight: 600; color: #2B2926; }
+.rbc-off-range .rbc-date-cell { color: #6B6862; }
+.rbc-event-content { font-weight: 700; color: #FFFDFB; }
