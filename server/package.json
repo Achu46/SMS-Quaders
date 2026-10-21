@@ -8,7 +8,8 @@
     "start": "node index.js",
     "test": "node tests/ai.test.js && node tests/security.test.js && node tests/p1.test.js",
     "seed": "node prisma/seed.js",
-    "postinstall": "prisma skills sync || exit 0"
+    "build": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
