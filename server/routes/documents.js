@@ -2,9 +2,20 @@ const express = require('express');
 const router = express.Router({ mergeParams: true });
 const { authenticateToken, requireTenantAccess } = require('../middleware');
 
+// Allow public unauthenticated read for global subscription_plans collection
+const checkCollectionReadAccess = (req, res, next) => {
+  if (req.params.schoolId === 'global' && req.params.collection === 'subscription_plans') {
+    req.schoolId = 'global';
+    return next();
+  }
+  return authenticateToken(req, res, () => {
+    requireTenantAccess(req, res, next);
+  });
+};
+
 // GET /api/schools/:schoolId/collections/:collection
 // Query all documents in a collection
-router.get('/:collection', authenticateToken, requireTenantAccess, async (req, res) => {
+router.get('/:collection', checkCollectionReadAccess, async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { collection } = req.params;
