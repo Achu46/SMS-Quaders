@@ -72,7 +72,7 @@ router.post('/chat', requireActiveSchool, requireAcademicSetup, async (req, res)
     // Rollback quota on catastrophic server / provider error
     await aiQuotaService.rollbackQuota(schoolId, prisma);
 
-    const isApiKeyMissing = error.message?.includes('OPENROUTER_API_KEY');
+    const isApiKeyMissing = error.message?.includes('GEMINI_API_KEY') || error.message?.includes('OPENROUTER_API_KEY');
     const isTimeout = error.code === 'TIMEOUT';
 
     let userMessage = 'The AI assistant is temporarily unavailable. Please try again in a moment.';

@@ -47,6 +47,7 @@ model School {
   aiAuditLogs      AiAuditLog[]
   aiConversations  AiConversation[]
   supportTickets   SupportTicket[]
+  modules          SchoolModule[]
 }
 
 enum Role {
@@ -93,6 +94,7 @@ model User {
   classAssignments ClassAssignment[]
   passwordResetTokens PasswordResetToken[]
   assignedTickets  SupportTicket[]   @relation("AssignedTickets")
+  parent           Parent?
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -133,6 +135,7 @@ model Class {
   subjects       Subject[]
   assignments    ClassAssignment[]
   fees           FeeStructure[]
+  attendances    Attendance[]
 
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -214,7 +217,8 @@ model Parent {
   schoolId  String
   school    School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   
-  userId    String?
+  userId    String?         @unique
+  user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   name      String
   email     String?
   phone     String?
@@ -226,6 +230,7 @@ model Parent {
   updatedAt DateTime        @updatedAt
 
   @@index([schoolId])
+  @@index([userId])
 }
 
 model ParentStudent {
@@ -270,8 +275,10 @@ model Student {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
+  @@unique([schoolId, admissionNo])
   @@index([schoolId])
   @@index([classId])
+  @@index([sectionId])
   @@index([admissionNo])
 }
 
@@ -281,6 +288,7 @@ model Attendance {
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   
   classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
   // Storing the date string to query efficiently like "2026-08-27_FN" or we can store Date and Session
   date      String   
   session   String   // "FN" or "AN"
@@ -293,6 +301,7 @@ model Attendance {
 
   @@unique([schoolId, classId, date, session])
   @@index([schoolId])
+  @@index([classId])
 }
 
 enum AttendanceStatus {
@@ -344,6 +353,8 @@ model LeaveRequest {
   updatedAt     DateTime    @updatedAt
 
   @@index([schoolId])
+  @@index([studentId])
+  @@index([applicantId])
 }
 
 model FeeStructure {
@@ -364,6 +375,7 @@ model FeeStructure {
   updatedAt DateTime  @updatedAt
 
   @@index([schoolId])
+  @@index([classId])
 }
 
 enum InvoiceStatus {
@@ -393,6 +405,8 @@ model Invoice {
 
   @@index([schoolId])
   @@index([studentId])
+  @@index([feeId])
+  @@index([status])
 }
 
 model SchoolDocument {
@@ -508,6 +522,7 @@ model SupportTicket {
   @@index([schoolId])
   @@index([status])
   @@index([priority])
+  @@index([assignedToId])
 }
 
 model SupportTicketMessage {
@@ -540,5 +555,50 @@ model SupportTicketHistory {
   createdAt   DateTime      @default(now())
 
   @@index([ticketId])
+}
+
+model Module {
+  id          String         @id
+  name        String
+  category    String         @default("CORE")
+  description String?
+  icon        String?
+  isCore      Boolean        @default(false)
+  actions     Json           @default("[\"VIEW\"]")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  schoolModules SchoolModule[]
+}
+
+model SchoolModule {
+  id        String   @id @default(uuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  moduleId  String
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  isEnabled Boolean  @default(true)
+  settings  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, moduleId])
+  @@index([schoolId])
+  @@index([moduleId])
+}
+
+model SuperAdmin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String   @default("Super Administrator")
+  phone     String?
+  role      String   @default("SUPER_ADMIN")
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("superadmin")
 }
 

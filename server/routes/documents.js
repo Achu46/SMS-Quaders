@@ -50,6 +50,9 @@ router.get('/:collection/:id', authenticateToken, requireTenantAccess, async (re
     });
 
     if (!doc) {
+      if (collection === 'email_templates' && id === 'default') {
+        return res.json({ id: 'default', collection: 'email_templates', schoolId });
+      }
       return res.status(404).json({ error: 'Document not found' });
     }
 

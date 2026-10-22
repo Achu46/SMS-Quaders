@@ -4,9 +4,11 @@
  */
 
 const AI_CONFIG = {
-  // OpenRouter & LLM Provider Settings
+  // Google AI Studio (Gemini) & LLM Provider Settings
+  geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_KEY || '',
   openRouterApiKey: process.env.OPENROUTER_API_KEY || '',
-  model: process.env.AI_MODEL || 'openrouter/free',
+  model: process.env.AI_MODEL || 'gemini-3.5-flash-lite',
+  fallbackModel: process.env.AI_FALLBACK_MODEL || 'gemini-3-flash-preview',
   temperature: parseFloat(process.env.AI_TEMPERATURE || '0.2'),
   maxTokens: parseInt(process.env.AI_MAX_TOKENS || '2048', 10),
   requestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS || '35000', 10),

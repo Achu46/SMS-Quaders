@@ -31,7 +31,26 @@ router.use(authenticateToken, requireActiveSchool, requireRole(['ADMIN', 'SUPER_
 
 // GET /api/roles/modules
 // Catalog of all available module keys and their actions
-router.get('/modules', (req, res) => {
+router.get('/modules', async (req, res) => {
+  try {
+    if (req.prisma && req.prisma.module) {
+      const dbModules = await req.prisma.module.findMany({
+        orderBy: [{ category: 'asc' }, { name: 'asc' }]
+      });
+      if (dbModules && dbModules.length > 0) {
+        return res.json(dbModules.map(m => ({
+          id: m.id,
+          label: m.name,
+          category: m.category,
+          description: m.description,
+          isCore: m.isCore,
+          actions: m.actions
+        })));
+      }
+    }
+  } catch (err) {
+    // Fallback to static catalog if table not yet migrated
+  }
   res.json(MODULE_CATALOG);
 });
 

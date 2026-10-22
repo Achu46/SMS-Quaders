@@ -1,3 +1,4 @@
+const GeminiProvider = require('./providers/geminiProvider');
 const OpenRouterProvider = require('./providers/openRouterProvider');
 const toolRegistry = require('./aiToolRegistry');
 const defaultPrisma = require('../../prismaClient');
@@ -5,7 +6,16 @@ const AI_CONFIG = require('../../config/aiConfig');
 
 class AiService {
   constructor(provider = null) {
-    this.provider = provider || new OpenRouterProvider();
+    if (provider) {
+      this.provider = provider;
+    } else if (AI_CONFIG.geminiApiKey) {
+      this.provider = new GeminiProvider();
+    } else if (AI_CONFIG.openRouterApiKey) {
+      this.provider = new OpenRouterProvider();
+    } else {
+      // Default to GeminiProvider
+      this.provider = new GeminiProvider();
+    }
   }
 
   /**
@@ -105,7 +115,8 @@ Current Authenticated User: ${userName} (Role: ${userRole}).
         conversationMessages.push({
           role: 'assistant',
           content: response.text || null,
-          tool_calls: response.rawMessage?.tool_calls
+          tool_calls: response.rawMessage?.tool_calls,
+          rawGeminiParts: response.rawCandidateParts
         });
 
         // Execute each requested tool
