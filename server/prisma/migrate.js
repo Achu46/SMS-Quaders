@@ -19,7 +19,7 @@ async function migrate() {
 
   const client = new Client({
     connectionString: databaseUrl,
-    ssl: databaseUrl.includes('railway') || databaseUrl.includes('supabase') || databaseUrl.includes('neon')
+    ssl: !databaseUrl.includes('localhost') && !databaseUrl.includes('127.0.0.1') && (databaseUrl.includes('railway') || databaseUrl.includes('supabase') || databaseUrl.includes('neon'))
       ? { rejectUnauthorized: false }
       : false
   });

@@ -5,6 +5,7 @@ import {
   getAssessmentsByClass, 
   createAssessment, 
   updateAssessmentGrades,
+  bulkSaveAssessmentGrades,
   getExams,
   subscribeToStudentsByClass,
   subscribeToAssessmentsByClass,
@@ -160,23 +161,26 @@ export default function Grades() {
     setSavingGrades(true);
     setSuccessMsg('');
     try {
-      // Clean up empty strings to actual nulls or just don't save them
-      const cleanedGrades = {};
-      Object.keys(grades).forEach(id => {
-        if (grades[id] !== '') {
-          cleanedGrades[id] = Number(grades[id]);
-        }
+      const gradesArray = Object.keys(grades).map(id => {
+        const val = grades[id];
+        const isAbsent = val === 'AB' || val === 'ab';
+        const isExempt = val === 'EX' || val === 'ex';
+        return {
+          studentId: id,
+          marksObtained: isAbsent || isExempt ? 0 : (val !== '' && !isNaN(Number(val)) ? Number(val) : 0),
+          isAbsent,
+          isExempt
+        };
       });
 
-      await updateAssessmentGrades(schoolId, activeAssessment.id, cleanedGrades);
+      await bulkSaveAssessmentGrades(activeAssessment.id, { grades: gradesArray });
       
-      // Update local state to reflect saved grades
-      // assessments listener handles state updates
       setSuccessMsg('Grades saved successfully!');
+      toast.success('Marks saved to evaluation ledger!');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (error) {
       console.error("Error saving grades:", error);
-      toast.error("Failed to save grades.");
+      toast.error(error.message || "Failed to save grades.");
     } finally {
       setSavingGrades(false);
     }

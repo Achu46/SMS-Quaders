@@ -49,6 +49,24 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE "ExaminationStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'FINALIZED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE "AssessmentStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'SUBMITTED', 'LOCKED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE "ReportCardStatus" AS ENUM ('PUBLISHED', 'ARCHIVED');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
 -- -----------------------------------------------------------------------------
 -- 2. CORE MULTI-TENANT TABLES
 -- -----------------------------------------------------------------------------
@@ -388,6 +406,97 @@ CREATE TABLE IF NOT EXISTS "superadmin" (
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- examinations
+CREATE TABLE IF NOT EXISTS "examinations" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "schoolId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "examType" TEXT NOT NULL DEFAULT 'Term',
+    "academicYear" TEXT NOT NULL,
+    "term" TEXT,
+    "startDate" TIMESTAMP(3) NOT NULL,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "status" "ExaminationStatus" NOT NULL DEFAULT 'DRAFT',
+    "classId" TEXT,
+    "sectionId" TEXT,
+    "customData" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- assessments
+CREATE TABLE IF NOT EXISTS "assessments" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "schoolId" TEXT NOT NULL,
+    "examinationId" TEXT,
+    "classId" TEXT NOT NULL,
+    "sectionId" TEXT,
+    "subjectId" TEXT NOT NULL,
+    "teacherId" TEXT,
+    "title" TEXT NOT NULL,
+    "totalMarks" DOUBLE PRECISION NOT NULL DEFAULT 100,
+    "passingMarks" DOUBLE PRECISION NOT NULL DEFAULT 40,
+    "weightage" DOUBLE PRECISION NOT NULL DEFAULT 100,
+    "examDate" TIMESTAMP(3),
+    "status" "AssessmentStatus" NOT NULL DEFAULT 'PENDING',
+    "components" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- assessment_grades
+CREATE TABLE IF NOT EXISTS "assessment_grades" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "schoolId" TEXT NOT NULL,
+    "assessmentId" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "marksObtained" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "isAbsent" BOOLEAN NOT NULL DEFAULT false,
+    "isExempt" BOOLEAN NOT NULL DEFAULT false,
+    "grade" TEXT,
+    "remarks" JSONB,
+    "overrideReason" TEXT,
+    "overriddenById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- report_card_templates
+CREATE TABLE IF NOT EXISTS "report_card_templates" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "schoolId" TEXT NOT NULL,
+    "name" TEXT NOT NULL DEFAULT 'Standard Report Card',
+    "type" TEXT NOT NULL DEFAULT 'CBSE',
+    "branding" JSONB,
+    "headerConfig" JSONB,
+    "signatureBlocks" JSONB,
+    "gradingScale" JSONB,
+    "customColumns" JSONB,
+    "rawHtml" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- report_cards
+CREATE TABLE IF NOT EXISTS "report_cards" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "schoolId" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "examinationId" TEXT NOT NULL,
+    "academicYear" TEXT NOT NULL,
+    "term" TEXT,
+    "marksBreakdown" JSONB NOT NULL,
+    "totalMarksObtained" DOUBLE PRECISION NOT NULL,
+    "totalMaxMarks" DOUBLE PRECISION NOT NULL,
+    "percentage" DOUBLE PRECISION NOT NULL,
+    "overallGrade" TEXT NOT NULL,
+    "attendanceStats" JSONB,
+    "status" "ReportCardStatus" NOT NULL DEFAULT 'PUBLISHED',
+    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- -----------------------------------------------------------------------------
 -- 3. UNIQUE CONSTRAINTS & COMPOSITE KEYS
 -- -----------------------------------------------------------------------------
@@ -425,6 +534,18 @@ EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
     ALTER TABLE "SchoolModule" ADD CONSTRAINT "SchoolModule_schoolId_moduleId_key" UNIQUE ("schoolId", "moduleId");
+EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessment_grades" ADD CONSTRAINT "assessment_grades_assessmentId_studentId_key" UNIQUE ("assessmentId", "studentId");
+EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "report_card_templates" ADD CONSTRAINT "report_card_templates_schoolId_type_key" UNIQUE ("schoolId", "type");
+EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "report_cards" ADD CONSTRAINT "report_cards_schoolId_studentId_examinationId_key" UNIQUE ("schoolId", "studentId", "examinationId");
 EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
 
 -- -----------------------------------------------------------------------------
@@ -477,6 +598,27 @@ CREATE INDEX IF NOT EXISTS "SupportTicketMessage_ticketId_idx" ON "SupportTicket
 CREATE INDEX IF NOT EXISTS "SupportTicketHistory_ticketId_idx" ON "SupportTicketHistory"("ticketId");
 CREATE INDEX IF NOT EXISTS "SchoolModule_schoolId_idx" ON "SchoolModule"("schoolId");
 CREATE INDEX IF NOT EXISTS "SchoolModule_moduleId_idx" ON "SchoolModule"("moduleId");
+
+CREATE INDEX IF NOT EXISTS "examinations_schoolId_idx" ON "examinations"("schoolId");
+CREATE INDEX IF NOT EXISTS "examinations_academicYear_idx" ON "examinations"("academicYear");
+CREATE INDEX IF NOT EXISTS "examinations_status_idx" ON "examinations"("status");
+CREATE INDEX IF NOT EXISTS "examinations_classId_idx" ON "examinations"("classId");
+
+CREATE INDEX IF NOT EXISTS "assessments_schoolId_idx" ON "assessments"("schoolId");
+CREATE INDEX IF NOT EXISTS "assessments_examinationId_idx" ON "assessments"("examinationId");
+CREATE INDEX IF NOT EXISTS "assessments_classId_idx" ON "assessments"("classId");
+CREATE INDEX IF NOT EXISTS "assessments_subjectId_idx" ON "assessments"("subjectId");
+CREATE INDEX IF NOT EXISTS "assessments_teacherId_idx" ON "assessments"("teacherId");
+
+CREATE INDEX IF NOT EXISTS "assessment_grades_schoolId_idx" ON "assessment_grades"("schoolId");
+CREATE INDEX IF NOT EXISTS "assessment_grades_assessmentId_idx" ON "assessment_grades"("assessmentId");
+CREATE INDEX IF NOT EXISTS "assessment_grades_studentId_idx" ON "assessment_grades"("studentId");
+
+CREATE INDEX IF NOT EXISTS "report_card_templates_schoolId_idx" ON "report_card_templates"("schoolId");
+
+CREATE INDEX IF NOT EXISTS "report_cards_schoolId_idx" ON "report_cards"("schoolId");
+CREATE INDEX IF NOT EXISTS "report_cards_studentId_idx" ON "report_cards"("studentId");
+CREATE INDEX IF NOT EXISTS "report_cards_examinationId_idx" ON "report_cards"("examinationId");
 
 -- -----------------------------------------------------------------------------
 -- 5. FOREIGN KEY CONSTRAINTS (Referential Integrity & Cascading Deletions)
@@ -655,6 +797,79 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
     ALTER TABLE "SchoolModule" ADD CONSTRAINT "SchoolModule_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Examination foreign keys
+DO $$ BEGIN
+    ALTER TABLE "examinations" ADD CONSTRAINT "examinations_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "examinations" ADD CONSTRAINT "examinations_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "examinations" ADD CONSTRAINT "examinations_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Assessment foreign keys
+DO $$ BEGIN
+    ALTER TABLE "assessments" ADD CONSTRAINT "assessments_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessments" ADD CONSTRAINT "assessments_examinationId_fkey" FOREIGN KEY ("examinationId") REFERENCES "examinations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessments" ADD CONSTRAINT "assessments_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessments" ADD CONSTRAINT "assessments_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessments" ADD CONSTRAINT "assessments_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessments" ADD CONSTRAINT "assessments_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- AssessmentGrade foreign keys
+DO $$ BEGIN
+    ALTER TABLE "assessment_grades" ADD CONSTRAINT "assessment_grades_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessment_grades" ADD CONSTRAINT "assessment_grades_assessmentId_fkey" FOREIGN KEY ("assessmentId") REFERENCES "assessments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessment_grades" ADD CONSTRAINT "assessment_grades_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "assessment_grades" ADD CONSTRAINT "assessment_grades_overriddenById_fkey" FOREIGN KEY ("overriddenById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ReportCardTemplate foreign keys
+DO $$ BEGIN
+    ALTER TABLE "report_card_templates" ADD CONSTRAINT "report_card_templates_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ReportCard foreign keys
+DO $$ BEGIN
+    ALTER TABLE "report_cards" ADD CONSTRAINT "report_cards_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "report_cards" ADD CONSTRAINT "report_cards_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE "report_cards" ADD CONSTRAINT "report_cards_examinationId_fkey" FOREIGN KEY ("examinationId") REFERENCES "examinations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- -----------------------------------------------------------------------------

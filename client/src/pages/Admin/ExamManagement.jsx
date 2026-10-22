@@ -9,7 +9,12 @@ import {
   getExamAssessments,
   getTemplate,
   subscribeToExams,
-  subscribeToSubCollection
+  subscribeToSubCollection,
+  previewReportCards,
+  publishReportCards,
+  updateExamStatus,
+  getExamProgress,
+  deleteExam
 } from '../../firebase/firestore';
 import { LuFileText as FileText, LuPlus as Plus, LuX as X, LuGraduationCap as GraduationCap, LuCalendar as Calendar, LuFileChartColumn as FileBarChart, LuLoaderCircle as Loader2, LuPrinter as Printer, LuPalette as Palette } from 'react-icons/lu';
 import toast from 'react-hot-toast';
@@ -110,14 +115,15 @@ export default function ExamManagement() {
       await createExam(schoolId, {
         ...newExam,
         customData: uploadedCustomData,
-        maxMarks: Number(newExam.maxMarks),
-        status: 'active'
+        defaultTotalMarks: Number(newExam.maxMarks) || 100,
+        autoCreateAssessments: true,
+        classId: newExam.classId || undefined
       });
-      // Listener handles updates
       setShowCreateModal(false);
-      setNewExam({ name: '', startDate: '', endDate: '', examType: 'Custom Exam', maxMarks: 100, customData: {} });
+      setNewExam({ name: '', startDate: '', endDate: '', examType: 'Term', maxMarks: 100, customData: {} });
+      toast.success("Examination scheduled successfully!");
     } catch (error) {
-      toast.error("Failed to create exam");
+      toast.error(error.message || "Failed to create exam");
     } finally {
       setCreating(false);
     }
@@ -128,56 +134,63 @@ export default function ExamManagement() {
     
     setGeneratingReport(true);
     try {
-      // 1. Fetch Students in Class
-      const students = await getStudentsByClass(schoolId, selectedClassId);
-      students.sort((a, b) => a.firstName.localeCompare(b.firstName));
+      const res = await previewReportCards({
+        examinationId: selectedExamId,
+        classId: selectedClassId
+      });
 
-      // 2. Fetch all assessments for this class linked to this exam
-      const assessments = await getExamAssessments(schoolId, selectedClassId, selectedExamId);
-
-      // 3. Build data structure
-      // We want rows = students, cols = assessments
-      
-      const rows = students.map(student => {
-        let totalObtained = 0;
-        let totalMax = 0;
-        const marks = {}; // { assessmentId: { obtained, max } }
-
-        assessments.forEach(assessment => {
-          const studentMark = assessment.grades?.[student.id];
-          if (studentMark !== undefined && studentMark !== null) {
-            marks[assessment.id] = {
-              obtained: studentMark,
-              max: assessment.totalMarks
+      if (res && res.reports) {
+        const rows = res.reports.map(rep => {
+          const marks = {};
+          (rep.marksBreakdown || []).forEach(mb => {
+            marks[mb.assessmentId] = {
+              obtained: mb.isAbsent ? 'AB' : mb.isExempt ? 'EX' : mb.marksObtained,
+              max: mb.maxMarks,
+              letterGrade: mb.letterGrade,
+              title: mb.subjectName
             };
-            totalObtained += studentMark;
-            totalMax += Number(assessment.totalMarks);
-          } else {
-            marks[assessment.id] = { obtained: '-', max: assessment.totalMarks };
+          });
+          return {
+            student: {
+              id: rep.studentId,
+              firstName: rep.studentName?.split(' ')[0] || rep.studentName,
+              lastName: rep.studentName?.split(' ').slice(1).join(' ') || '',
+              admissionNo: rep.admissionNo,
+              rollNo: rep.rollNo
+            },
+            marks,
+            totalObtained: rep.totalMarksObtained,
+            totalMax: rep.totalMaxMarks,
+            percentage: rep.percentage,
+            overallGrade: rep.overallGrade,
+            attendance: rep.attendanceStats
+          };
+        });
+
+        const assessmentsList = [];
+        const seen = new Set();
+        (res.reports[0]?.marksBreakdown || []).forEach(mb => {
+          if (!seen.has(mb.assessmentId)) {
+            seen.add(mb.assessmentId);
+            assessmentsList.push({
+              id: mb.assessmentId,
+              title: mb.subjectName,
+              totalMarks: mb.maxMarks
+            });
           }
         });
 
-        const percentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : 0;
-
-        return {
-          student,
-          marks,
-          totalObtained,
-          totalMax,
-          percentage
-        };
-      });
-
-      setReportData({
-        students: rows,
-        assessments: assessments,
-        className: classes.find(c => c.id === selectedClassId)?.className || '',
-        examName: exams.find(e => e.id === selectedExamId)?.name || ''
-      });
-
+        setReportData({
+          students: rows,
+          assessments: assessmentsList,
+          className: classes.find(c => c.id === selectedClassId)?.className || classes.find(c => c.id === selectedClassId)?.name || '',
+          examName: res.examination?.name || exams.find(e => e.id === selectedExamId)?.name || ''
+        });
+        toast.success("Report preview generated with CBSE grading & attendance stats!");
+      }
     } catch (error) {
       console.error("Error generating report:", error);
-      toast.error("Failed to generate report card data.");
+      toast.error(error.message || "Failed to generate report card preview.");
     } finally {
       setGeneratingReport(false);
     }
@@ -186,45 +199,25 @@ export default function ExamManagement() {
   const [publishing, setPublishing] = useState(false);
 
   const handlePublishReportCards = async () => {
-    if (!reportData || !reportTemplate) {
-      toast.error("Please generate report card data and customize/publish a template first.");
+    if (!selectedExamId || !selectedClassId) {
+      toast.error("Please select an exam and class first.");
       return;
     }
     
     setPublishing(true);
-    const loadingToast = toast.loading("Publishing report cards to parent portal...");
+    const loadingToast = toast.loading("Publishing historical report card snapshots...");
     try {
-      const batchPromises = reportData.students.map(async (row) => {
-        const studentId = row.student.id;
-        const examId = selectedExamId;
-        const docRef = doc(db, `schools/${schoolId}/students/${studentId}/report_cards`, examId);
-        
-        const reportCardDoc = {
-          examId,
-          examName: reportData.examName,
-          classId: selectedClassId,
-          className: reportData.className,
-          studentId,
-          studentName: `${row.student.firstName} ${row.student.lastName}`,
-          marks: row.marks,
-          totalObtained: row.totalObtained,
-          totalMax: row.totalMax,
-          percentage: row.percentage,
-          publishedAt: new Date().toISOString(),
-          publishedBy: userProfile?.name || userProfile?.email || 'Admin',
-          reportTemplate: reportTemplate
-        };
-        
-        await setDoc(docRef, reportCardDoc);
+      const res = await publishReportCards({
+        examinationId: selectedExamId,
+        classId: selectedClassId
       });
       
-      await Promise.all(batchPromises);
       toast.dismiss(loadingToast);
-      toast.success("Report cards published successfully! Parents can now view them.");
+      toast.success(res.message || `Published ${res.publishedCount || 0} report cards successfully! Parents can now view them.`);
     } catch (error) {
       console.error("Error publishing report cards:", error);
       toast.dismiss(loadingToast);
-      toast.error("Failed to publish report cards.");
+      toast.error(error.message || "Failed to publish report cards.");
     } finally {
       setPublishing(false);
     }

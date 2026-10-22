@@ -342,10 +342,6 @@ export const findStudentByAdmission = async (schoolId, admissionNumber, dob) => 
 
 // --- Assessments / Grades Operations ---
 
-export const createAssessment = async (schoolId, assessmentData) => {
-  return await addSubDocument(schoolId, 'assessments', assessmentData);
-};
-
 export const getAssessmentsByClass = async (schoolId, classId) => {
   const all = await getSubCollection(schoolId, 'assessments');
   return all.filter(a => a.classId === classId);
@@ -462,16 +458,141 @@ export const returnBook = async (schoolId, issueId) => updateSubDocument(schoolI
 export const subscribeToBooks = (schoolId, callback) => subscribeToSubCollection(schoolId, 'library_books', callback);
 export const subscribeToIssuedBooks = (schoolId, callback) => subscribeToSubCollection(schoolId, 'issued_books', callback);
 
-// --- Exams & Results Operations ---
+// --- Exams, Assessments & Report Cards Operations ---
 
-export const getExams = async (schoolId) => getSubCollection(schoolId, 'exams');
-export const createExam = async (schoolId, data) => addSubDocument(schoolId, 'exams', data);
-export const saveExam = async (schoolId, data) => addSubDocument(schoolId, 'exams', data);
+export const getExams = async (schoolId, params = {}) => {
+  try {
+    return await api.get('/v1/exams', { params });
+  } catch (error) {
+    console.error('getExams error, falling back to collections:', error);
+    return getSubCollection(schoolId, 'exams');
+  }
+};
+
+export const createExam = async (schoolId, data) => {
+  try {
+    const res = await api.post('/v1/exams', data);
+    return res.exam || res;
+  } catch (error) {
+    console.error('createExam error, falling back to collections:', error);
+    return addSubDocument(schoolId, 'exams', data);
+  }
+};
+
+export const saveExam = async (schoolId, data) => createExam(schoolId, data);
+
+export const updateExamStatus = async (examId, status) => {
+  return await api.post(`/v1/exams/${examId}/status`, { status });
+};
+
+export const getExamProgress = async (examId) => {
+  return await api.get(`/v1/exams/${examId}/progress`);
+};
+
+export const deleteExam = async (schoolId, examId) => {
+  try {
+    return await api.delete(`/v1/exams/${examId}`);
+  } catch (error) {
+    return deleteSubDocument(schoolId, 'exams', examId);
+  }
+};
+
+export const getAssessments = async (params = {}) => {
+  return await api.get('/v1/assessments', { params });
+};
+
+export const createAssessment = async (schoolId, data) => {
+  return await api.post('/v1/assessments', data);
+};
+
+export const getAssessmentGrades = async (assessmentId) => {
+  return await api.get(`/v1/assessments/${assessmentId}/grades`);
+};
+
+export const bulkSaveAssessmentGrades = async (assessmentId, gradesData) => {
+  return await api.post(`/v1/assessments/${assessmentId}/grades/bulk`, gradesData);
+};
+
+export const overrideAssessmentGrade = async (assessmentId, studentId, gradeData) => {
+  return await api.put(`/v1/assessments/${assessmentId}/grades/${studentId}`, gradeData);
+};
+
+export const previewReportCards = async (previewData) => {
+  return await api.post('/v1/report-cards/preview', previewData);
+};
+
+export const publishReportCards = async (publishData) => {
+  return await api.post('/v1/report-cards/publish', publishData);
+};
+
+export const getStudentReportCards = async (studentId) => {
+  return await api.get(`/v1/report-cards/student/${studentId}`);
+};
+
+export const getReportCardTemplate = async (type = 'CBSE') => {
+  return await api.get(`/v1/report-card-templates/${type}`);
+};
+
+export const saveReportCardTemplate = async (templateData, type = 'CBSE') => {
+  return await api.put(`/v1/report-card-templates/${type}`, templateData);
+};
+
+export const getTemplate = async (schoolId, templateId = 'CBSE') => {
+  try {
+    return await getReportCardTemplate(templateId);
+  } catch (e) {
+    return { id: templateId };
+  }
+};
+
+export const saveTemplate = async (schoolId, templateId, templateData) => {
+  try {
+    return await saveReportCardTemplate(templateData, templateId);
+  } catch (e) {
+    return addSubDocument(schoolId, 'report_templates', templateData);
+  }
+};
+
+export const subscribeToExams = (schoolId, callback) => {
+  let isSubscribed = true;
+  if (schoolId) socket.emit('join_tenant', schoolId);
+
+  const fetchAndEmit = () => {
+    getExams(schoolId).then((data) => {
+      if (isSubscribed) callback(Array.isArray(data) ? data : []);
+    });
+  };
+
+  fetchAndEmit();
+
+  const handleUpdate = () => {
+    if (isSubscribed) fetchAndEmit();
+  };
+
+  socket.on('exam_created', handleUpdate);
+  socket.on('exam_updated', handleUpdate);
+  socket.on('exam_status_updated', handleUpdate);
+  socket.on('exam_deleted', handleUpdate);
+
+  return () => {
+    isSubscribed = false;
+    socket.off('exam_created', handleUpdate);
+    socket.off('exam_updated', handleUpdate);
+    socket.off('exam_status_updated', handleUpdate);
+    socket.off('exam_deleted', handleUpdate);
+  };
+};
+
+export const getExamAssessments = async (schoolId, classId, examId) => {
+  try {
+    return await getAssessments({ classId, examinationId: examId });
+  } catch (e) {
+    return getSubCollection(schoolId, 'exam_assessments');
+  }
+};
+
 export const getExamResults = async (schoolId) => getSubCollection(schoolId, 'exam_results');
 export const saveExamResult = async (schoolId, data) => addSubDocument(schoolId, 'exam_results', data);
-export const getExamAssessments = async (schoolId) => getSubCollection(schoolId, 'exam_assessments');
-export const getTemplate = async (schoolId, templateId) => ({ id: templateId });
-export const subscribeToExams = (schoolId, callback) => subscribeToSubCollection(schoolId, 'exams', callback);
 
 // --- Settings & Integrations ---
 
@@ -557,7 +678,6 @@ export const subscribeToStudentPTMs = (schoolId, studentId, callback) => {
   });
 };
 export const getTeachersForChat = async (schoolId) => getSubCollection(schoolId, 'teachers');
-export const saveTemplate = async (schoolId, templateData) => addSubDocument(schoolId, 'report_templates', templateData);
 export const uploadChatMedia = async (file) => {
   // Convert file to base64 or return object URL
   return new Promise((resolve) => {

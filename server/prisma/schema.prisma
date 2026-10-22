@@ -48,6 +48,11 @@ model School {
   aiConversations  AiConversation[]
   supportTickets   SupportTicket[]
   modules          SchoolModule[]
+  examinations     Examination[]
+  assessments      Assessment[]
+  assessmentGrades AssessmentGrade[]
+  reportCardTemplates ReportCardTemplate[]
+  reportCards      ReportCard[]
 }
 
 enum Role {
@@ -95,6 +100,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   assignedTickets  SupportTicket[]   @relation("AssignedTickets")
   parent           Parent?
+  assessmentsTaught Assessment[]
+  gradeOverrides   AssessmentGrade[] @relation("GradeOverrides")
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -136,6 +143,8 @@ model Class {
   assignments    ClassAssignment[]
   fees           FeeStructure[]
   attendances    Attendance[]
+  examinations   Examination[]
+  assessments    Assessment[]
 
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -155,6 +164,8 @@ model Section {
   name        String            // e.g. "A", "B"
   students    Student[]
   assignments ClassAssignment[]
+  examinations Examination[]
+  assessments Assessment[]
 
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -176,6 +187,7 @@ model Subject {
   code        String?           // e.g. "MATH-10"
   
   assignments ClassAssignment[]
+  assessments Assessment[]
 
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -271,6 +283,8 @@ model Student {
   attendances AttendanceEntry[]
   invoices    Invoice[]
   leaves      LeaveRequest[]
+  assessmentGrades AssessmentGrade[]
+  reportCards ReportCard[]
 
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -601,4 +615,186 @@ model SuperAdmin {
 
   @@map("superadmin")
 }
+
+// ==========================================
+// Exams, Results & Report Card Module
+// ==========================================
+
+enum ExaminationStatus {
+  DRAFT
+  PUBLISHED
+  FINALIZED
+}
+
+enum AssessmentStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  LOCKED
+}
+
+enum ReportCardStatus {
+  PUBLISHED
+  ARCHIVED
+}
+
+model Examination {
+  id           String            @id @default(uuid())
+  schoolId     String
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  name         String            // e.g. "Midterm Examination 2024-25"
+  examType     String            @default("Term") // "Final", "Term", "Periodic", "Class Test"
+  academicYear String            // e.g. "2024-2025"
+  term         String?           // e.g. "Term 1", "Term 2"
+  startDate    DateTime
+  endDate      DateTime
+  status       ExaminationStatus @default(DRAFT)
+  
+  classId      String?
+  class        Class?            @relation(fields: [classId], references: [id], onDelete: SetNull)
+  sectionId    String?
+  section      Section?          @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  
+  customData   Json?
+  
+  assessments  Assessment[]
+  reportCards  ReportCard[]
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([schoolId])
+  @@index([academicYear])
+  @@index([status])
+  @@index([classId])
+  @@map("examinations")
+}
+
+model Assessment {
+  id            String           @id @default(uuid())
+  schoolId      String
+  school        School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  examinationId String?
+  examination   Examination?     @relation(fields: [examinationId], references: [id], onDelete: Cascade)
+  
+  classId       String
+  class         Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  sectionId     String?
+  section       Section?         @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  subjectId     String
+  subject       Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  teacherId     String?
+  teacher       User?            @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  
+  title         String           // e.g. "Mathematics Theory"
+  totalMarks    Float            @default(100)
+  passingMarks  Float            @default(40)
+  weightage     Float            @default(100)
+  examDate      DateTime?
+  status        AssessmentStatus @default(PENDING)
+  components    Json?            // defined subcomponents e.g. [{"name":"PT", "maxMarks":20}, {"name":"Theory", "maxMarks":80}]
+  
+  grades        AssessmentGrade[]
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([schoolId])
+  @@index([examinationId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([teacherId])
+  @@map("assessments")
+}
+
+model AssessmentGrade {
+  id             String     @id @default(uuid())
+  schoolId       String
+  school         School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  assessmentId   String
+  assessment     Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  
+  studentId      String
+  student        Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  marksObtained  Float      @default(0)
+  isAbsent       Boolean    @default(false)
+  isExempt       Boolean    @default(false)
+  grade          String?
+  remarks        Json?      // sub-component breakdown e.g. {"components": {"PT": 18, "Theory": 74}, "notes": "Good"}
+  
+  overrideReason String?
+  overriddenById String?
+  overriddenBy   User?      @relation("GradeOverrides", fields: [overriddenById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@index([schoolId])
+  @@index([assessmentId])
+  @@index([studentId])
+  @@map("assessment_grades")
+}
+
+model ReportCardTemplate {
+  id              String   @id @default(uuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  name            String   @default("Standard Report Card")
+  type            String   @default("CBSE") // "DEFAULT", "CBSE", "CUSTOM"
+  branding        Json?    // { "primaryColor": "#1e40af", "showLogo": true, "schoolMotto": "..." }
+  headerConfig    Json?    // { "title": "ANNUAL PROGRESS REPORT", "affiliationText": "Affiliated to CBSE..." }
+  signatureBlocks Json?    // { "classTeacher": true, "principal": true, "parent": true }
+  gradingScale    Json?    // [{"min": 91, "max": 100, "grade": "A1"}, ...]
+  customColumns   Json?    // component layout configuration
+  rawHtml         String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([schoolId, type])
+  @@index([schoolId])
+  @@map("report_card_templates")
+}
+
+model ReportCard {
+  id                 String           @id @default(uuid())
+  schoolId           String
+  school             School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  
+  studentId          String
+  student            Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  examinationId      String
+  examination        Examination      @relation(fields: [examinationId], references: [id], onDelete: Cascade)
+  
+  academicYear       String
+  term               String?
+  
+  marksBreakdown     Json             // array of subjects with component scores, maxMarks, marksObtained, letterGrade
+  totalMarksObtained Float
+  totalMaxMarks      Float
+  percentage         Float
+  overallGrade       String
+  attendanceStats    Json?            // { "totalSessions": 120, "present": 114, "absent": 6, "percentage": 95.0 }
+  
+  status             ReportCardStatus @default(PUBLISHED)
+  publishedAt        DateTime         @default(now())
+
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([schoolId, studentId, examinationId])
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([examinationId])
+  @@map("report_cards")
+}
+
 

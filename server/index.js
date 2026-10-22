@@ -131,6 +131,10 @@ const uploadRoutes = require('./routes/upload');
 const emailRoutes = require('./routes/email');
 const whatsappRoutes = require('./routes/whatsapp');
 const ticketRoutes = require('./routes/tickets');
+const examRoutes = require('./routes/exams');
+const assessmentRoutes = require('./routes/assessments');
+const reportCardRoutes = require('./routes/reportCards');
+const reportCardTemplateRoutes = require('./routes/reportCardTemplates');
 
 // Health & Readiness Checks
 const livenessHandler = (req, res) => {
@@ -186,6 +190,16 @@ app.use('/api/email', emailRoutes);
 app.use('/api/whatsapp-service', whatsappRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/tickets', ticketRoutes);
+
+// Exams, Results & Report Cards Module (v1 & unversioned aliases)
+app.use('/api/v1/exams', examRoutes);
+app.use('/api/exams', examRoutes);
+app.use('/api/v1/assessments', assessmentRoutes);
+app.use('/api/assessments', assessmentRoutes);
+app.use('/api/v1/report-cards', reportCardRoutes);
+app.use('/api/report-cards', reportCardRoutes);
+app.use('/api/v1/report-card-templates', reportCardTemplateRoutes);
+app.use('/api/report-card-templates', reportCardTemplateRoutes);
 
 // 404 Handler
 app.use((req, res) => {

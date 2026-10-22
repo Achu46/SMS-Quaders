@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../firebase/config';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { LuFileSpreadsheet as FileIcon, LuPrinter as Printer, LuArrowLeft as ArrowLeft, LuCalendar as Calendar, LuAward as Award, LuDownload as DownloadIcon } from 'react-icons/lu';
+import { getStudentReportCards } from '../../firebase/firestore';
+import { LuFileSpreadsheet as FileIcon, LuPrinter as Printer, LuArrowLeft as ArrowLeft, LuCalendar as Calendar, LuAward as Award, LuDownload as DownloadIcon, LuCircleCheck as CheckCircle2 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import { useLocation } from 'react-router-dom';
 
@@ -20,28 +19,25 @@ export default function ParentGrades() {
     setSelectedReport(null);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (!schoolId || !studentId) {
+  const loadReportCards = async () => {
+    if (!studentId) {
       setLoading(false);
       return;
     }
-
     setLoading(true);
-    const ref = collection(db, `schools/${schoolId}/students/${studentId}/report_cards`);
-    
-    const unsubscribe = onSnapshot(ref, (snap) => {
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort by publication date descending
-      list.sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0));
-      setReportCards(list);
-      setLoading(false);
-    }, (error) => {
+    try {
+      const data = await getStudentReportCards(studentId);
+      setReportCards(Array.isArray(data) ? data : []);
+    } catch (error) {
       console.error("Error fetching report cards:", error);
       toast.error("Failed to load report cards.");
+    } finally {
       setLoading(false);
-    });
+    }
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    loadReportCards();
   }, [schoolId, studentId]);
 
   if (loading) {
@@ -61,13 +57,37 @@ export default function ParentGrades() {
   }
 
   if (selectedReport) {
-    const template = selectedReport.reportTemplate || {
-      themeColor: '#3b82f6',
+    const template = selectedReport.template?.branding || selectedReport.reportTemplate || {
+      primaryColor: '#1e40af',
+      themeColor: '#1e40af',
       header: { title: 'STUDENT REPORT CARD', subtitle: 'Academic Performance Record', showLogo: true, showAddress: true, showPhone: true, showEmail: true }
     };
-    
-    // Sort assessments/subjects keys
-    const assessmentIds = Object.keys(selectedReport.marks || {});
+    const themeColor = template.primaryColor || template.themeColor || '#1e40af';
+
+    // Normalize marks from either marksBreakdown array or marks map
+    const marksList = Array.isArray(selectedReport.marksBreakdown)
+      ? selectedReport.marksBreakdown
+      : Object.keys(selectedReport.marks || {}).map(id => {
+          const item = selectedReport.marks[id];
+          return {
+            subjectName: item.title || 'Subject',
+            marksObtained: item.obtained,
+            maxMarks: item.max,
+            letterGrade: item.letterGrade || '-'
+          };
+        });
+
+    const studentName = selectedReport.student 
+      ? `${selectedReport.student.firstName} ${selectedReport.student.lastName}`.trim()
+      : (selectedReport.studentName || 'Student');
+    const className = selectedReport.student?.class?.name || selectedReport.className || 'Class';
+    const examName = selectedReport.examination?.name || selectedReport.examName || 'Examination';
+    const academicYear = selectedReport.examination?.academicYear || selectedReport.academicYear || '2026-2027';
+    const totalObtained = selectedReport.totalMarksObtained ?? selectedReport.totalObtained ?? 0;
+    const totalMax = selectedReport.totalMaxMarks ?? selectedReport.totalMax ?? 100;
+    const overallPercentage = selectedReport.percentage ?? 0;
+    const overallGrade = selectedReport.overallGrade || (overallPercentage >= 33 ? 'D' : 'E');
+    const attendance = selectedReport.attendanceStats || null;
 
     return (
       <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-24 min-w-0 w-full">
@@ -90,33 +110,27 @@ export default function ParentGrades() {
         {/* Paper Report Card Layout */}
         <div className="bg-white dark:bg-slate-900 shadow-xl max-w-[794px] min-h-[1050px] mx-auto flex flex-col p-8 print:shadow-none border border-slate-100 dark:border-slate-800 rounded-3xl print:border-none print:p-0" style={{ fontFamily: "'Times New Roman', serif" }}>
           {/* Header */}
-          <div className="pb-4 flex items-center border-b-[3px]" style={{ borderColor: template.themeColor }}>
-            {template.header.showLogo && (
-              <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center border-2 shrink-0 mr-6" style={{ borderColor: template.themeColor }}>
-                <span className="text-[10px] text-slate-400 dark:text-slate-300 font-sans font-extrabold">LOGO</span>
-              </div>
-            )}
-            <div className={`flex-1 ${template.header.showLogo ? 'text-center' : 'text-left'}`}>
-              <h1 className="text-2xl font-black uppercase text-slate-900 dark:text-white" style={{ color: template.themeColor }}>
-                {userProfile?.schoolName || 'YOUR SCHOOL NAME'}
+          <div className="pb-4 flex items-center border-b-[3px]" style={{ borderColor: themeColor }}>
+            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center border-2 shrink-0 mr-6" style={{ borderColor: themeColor }}>
+              <span className="text-[10px] text-slate-400 dark:text-slate-300 font-sans font-extrabold">LOGO</span>
+            </div>
+            <div className="flex-1 text-center">
+              <h1 className="text-2xl font-black uppercase text-slate-900 dark:text-white" style={{ color: themeColor }}>
+                {userProfile?.schoolName || 'YOUR INSTITUTION NAME'}
               </h1>
               <div className="text-xs mt-1.5 text-slate-600 dark:text-slate-300 font-sans">
-                {template.header.showAddress && <span>123 Education Street, Learning City, 10001<br/></span>}
-                <span className="font-semibold">
-                  {template.header.showPhone && <span>Tel: +1 234 567 8900 </span>}
-                  {template.header.showPhone && template.header.showEmail && <span> | </span>}
-                  {template.header.showEmail && <span>Email: info@yourschool.edu</span>}
-                </span>
+                <span>Affiliated to CBSE | Comprehensive Evaluation Record<br/></span>
+                <span className="font-semibold">Tel: +1 234 567 8900 | Email: info@yourschool.edu</span>
               </div>
             </div>
           </div>
 
           {/* Title */}
           <div className="py-6 text-center">
-            <h2 className="text-xl font-bold uppercase underline decoration-2 underline-offset-4" style={{ decorationColor: template.themeColor }}>
-              {template.header.title}
+            <h2 className="text-xl font-bold uppercase underline decoration-2 underline-offset-4" style={{ decorationColor: themeColor }}>
+              ACADEMIC PROGRESS REPORT
             </h2>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">{template.header.subtitle}</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">Official Term Evaluation Record</p>
           </div>
 
           {/* Student Info */}
@@ -124,19 +138,19 @@ export default function ParentGrades() {
             <div className="grid grid-cols-2 gap-x-8 gap-y-2.5 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-sans">
               <div className="flex justify-between border-b border-slate-150 pb-1">
                 <span className="font-bold text-slate-500 dark:text-slate-400 text-xs uppercase">Student Name:</span>
-                <span className="font-bold text-slate-900 dark:text-white text-xs">{selectedReport.studentName}</span>
+                <span className="font-bold text-slate-900 dark:text-white text-xs">{studentName}</span>
               </div>
               <div className="flex justify-between border-b border-slate-150 pb-1">
                 <span className="font-bold text-slate-500 dark:text-slate-400 text-xs uppercase">Class & Section:</span>
-                <span className="font-bold text-slate-900 dark:text-white text-xs">{selectedReport.className}</span>
+                <span className="font-bold text-slate-900 dark:text-white text-xs">{className}</span>
               </div>
               <div className="flex justify-between border-b border-slate-150 pb-1">
                 <span className="font-bold text-slate-500 dark:text-slate-400 text-xs uppercase">Examination:</span>
-                <span className="font-bold text-slate-900 dark:text-white text-xs">{selectedReport.examName}</span>
+                <span className="font-bold text-slate-900 dark:text-white text-xs">{examName}</span>
               </div>
               <div className="flex justify-between border-b border-slate-150 pb-1">
                 <span className="font-bold text-slate-500 dark:text-slate-400 text-xs uppercase">Academic Year:</span>
-                <span className="font-bold text-slate-900 dark:text-white text-xs">2026-2027</span>
+                <span className="font-bold text-slate-900 dark:text-white text-xs">{academicYear}</span>
               </div>
             </div>
           </div>
@@ -146,41 +160,61 @@ export default function ParentGrades() {
             <div className="w-full min-w-0 overflow-x-auto">
               <table className="w-full text-left border-collapse border border-slate-300 dark:border-slate-600 font-sans text-xs min-w-max">
                 <thead>
-                <tr className="text-white uppercase" style={{ backgroundColor: template.themeColor }}>
-                  <th className="p-3 border border-slate-300 dark:border-slate-600 font-bold">Assessment / Subject</th>
-                  <th className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold">Marks Obtained</th>
-                  <th className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold">Max Marks</th>
-                  <th className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold">Percentage</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {assessmentIds.map((id) => {
-                  const item = selectedReport.marks[id];
-                  const percentage = item.obtained !== '-' && Number(item.max) > 0 
-                    ? ((Number(item.obtained) / Number(item.max)) * 100).toFixed(1) + '%'
-                    : 'N/A';
-                  return (
-                    <tr key={id} className="hover:bg-slate-50/50">
-                      <td className="p-3 border border-slate-300 dark:border-slate-600 font-semibold text-slate-900 dark:text-white">{item.title || 'Assessment'}</td>
-                      <td className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold text-slate-800 dark:text-slate-100">{item.obtained}</td>
-                      <td className="p-3 border border-slate-300 dark:border-slate-600 text-center text-slate-500 dark:text-slate-400">{item.max}</td>
-                      <td className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold text-slate-800 dark:text-slate-100">{percentage}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  <tr className="text-white uppercase" style={{ backgroundColor: themeColor }}>
+                    <th className="p-3 border border-slate-300 dark:border-slate-600 font-bold">Subject</th>
+                    <th className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold">Marks Obtained</th>
+                    <th className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold">Max Marks</th>
+                    <th className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold">Grade</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {marksList.map((item, idx) => {
+                    const isAb = item.isAbsent;
+                    const isEx = item.isExempt;
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/50">
+                        <td className="p-3 border border-slate-300 dark:border-slate-600 font-semibold text-slate-900 dark:text-white">
+                          {item.subjectName}
+                          {item.components && (
+                            <div className="text-[10px] text-slate-500 font-normal mt-0.5">
+                              {Object.entries(item.components).map(([cName, cVal]) => `${cName}: ${cVal}`).join(' | ')}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold text-slate-800 dark:text-slate-100">
+                          {isAb ? 'AB' : isEx ? 'EX' : item.marksObtained}
+                        </td>
+                        <td className="p-3 border border-slate-300 dark:border-slate-600 text-center text-slate-500 dark:text-slate-400">
+                          {item.maxMarks}
+                        </td>
+                        <td className="p-3 border border-slate-300 dark:border-slate-600 text-center font-bold text-slate-800 dark:text-slate-100">
+                          {item.letterGrade || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* Performance summary card */}
-            <div className="mt-8 flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-sans">
+            {/* Performance & Attendance summary card */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-sans">
               <div>
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Obtained Marks:</span>
-                <p className="text-lg font-black text-slate-900 dark:text-white">{selectedReport.totalObtained} / {selectedReport.totalMax}</p>
+                <p className="text-lg font-black text-slate-900 dark:text-white">{totalObtained} / {totalMax}</p>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase">Overall Grade:</span>
+                  <span className="font-extrabold text-sm px-2 py-0.5 rounded bg-primary-50 text-primary-700">{overallGrade}</span>
+                </div>
               </div>
               <div className="text-right">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Overall Percentage:</span>
-                <p className="text-2xl font-black" style={{ color: template.themeColor }}>{selectedReport.percentage}%</p>
+                <p className="text-2xl font-black" style={{ color: themeColor }}>{overallPercentage}%</p>
+                {attendance && (
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">
+                    Attendance: {attendance.attendancePercentage}% ({attendance.presentSessions || attendance.present || 0}/{attendance.totalSessions || 0} Sessions)
+                  </p>
+                )}
               </div>
             </div>
           </div>
