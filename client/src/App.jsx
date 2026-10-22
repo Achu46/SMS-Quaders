@@ -167,6 +167,8 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/register" element={<SchoolRegistration />} />
+            <Route path="/register-school" element={<SchoolRegistration />} />
+            <Route path="/school-registration" element={<SchoolRegistration />} />
             <Route path="/admission/:schoolId" element={<PublicAdmissionForm />} />
             <Route path="/admission/form/:schoolId" element={<PublicAdmissionForm />} />
             <Route path="/apply/:schoolId" element={<PublicAdmissionForm />} />

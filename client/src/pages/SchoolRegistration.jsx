@@ -5,6 +5,7 @@ import { LuCheck as Check, LuShieldCheck as ShieldCheck, LuArrowRight as ArrowRi
 import { FiLoader as Loader } from 'react-icons/fi';
 import { registerSchool } from '../services/auth';
 import { getPlans } from '../firebase/firestore';
+import toast from 'react-hot-toast';
 
 export default function SchoolRegistration() {
   const navigate = useNavigate();
