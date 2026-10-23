@@ -12,8 +12,7 @@ import {
 import { logoutUser } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
-import { getDoc, doc, collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { getSchool, subscribeToSubCollection } from '../firebase/firestore';
 import TopNavbar from '../components/TopNavbar';
 import useSchoolBranding from '../hooks/useSchoolBranding';
 import { useNotifications } from '../context/NotificationContext';
@@ -72,62 +71,75 @@ export default function AdminDashboard() {
   useSchoolBranding(schoolData);
 
   useEffect(() => {
+    let unsubModules = null;
+
     const fetchSchoolData = async () => {
       try {
         if (userProfile && userProfile.schoolId) {
-          const schoolDoc = await getDoc(doc(db, 'schools', userProfile.schoolId));
-          if (schoolDoc.exists()) {
-            const data = schoolDoc.data();
-            if (data.status !== 'approved') {
+          let data = userProfile.school;
+          if (!data || !data.name) {
+            data = await getSchool(userProfile.schoolId);
+          }
+
+          if (data) {
+            const status = (data.status || userProfile.schoolStatus || '').toUpperCase();
+            if (status === 'PENDING') {
               navigate('/admin/pending');
               return;
-            } else {
-              setSchoolData(data);
-              
-              onSnapshot(doc(db, 'schools', userProfile.schoolId), (docSnap) => {
-                if (docSnap.exists()) {
-                  setSchoolData(docSnap.data());
-                }
-              });
-
-              try {
-                onSnapshot(collection(db, `schools/${userProfile.schoolId}/customModules`), (snapshot) => {
-                  const customMods = snapshot.docs
-                    .map(d => ({ id: d.id, ...d.data() }))
-                    .sort((a, b) => a.order - b.order)
-                    .map(m => ({
-                      name: m.name,
-                      path: `/admin/custom/${m.id}`,
-                      icon: LayoutGrid,
-                      moduleKey: m.id,
-                      isCustom: true
-                    }));
-                  setCustomNavItems(customMods);
-                });
-              } catch (e) {
-                console.warn('Failed to subscribe to custom modules:', e);
-              }
-
-              try {
-                onSnapshot(doc(db, 'settings', 'sidebar_order'), (docSnap) => {
-                  if (docSnap.exists() && Array.isArray(docSnap.data().order)) {
-                    setSidebarOrder(docSnap.data().order);
-                  }
-                });
-              } catch (e) {
-                console.warn('Failed to subscribe to sidebar order:', e);
-              }
             }
+            if (status === 'SUSPENDED') {
+              navigate('/admin/suspended');
+              return;
+            }
+
+            setSchoolData(data);
+
+            try {
+              unsubModules = subscribeToSubCollection(userProfile.schoolId, 'customModules', (docs) => {
+                const customMods = (docs || [])
+                  .sort((a, b) => (a.order || 0) - (b.order || 0))
+                  .map(m => ({
+                    name: m.name,
+                    path: `/admin/custom/${m.id}`,
+                    icon: LayoutGrid,
+                    moduleKey: m.id,
+                    isCustom: true
+                  }));
+                setCustomNavItems(customMods);
+              });
+            } catch (e) {
+              console.warn('Failed to subscribe to custom modules:', e);
+            }
+          } else {
+            // Fallback so admin is never locked out of dashboard
+            setSchoolData({
+              id: userProfile.schoolId,
+              name: userProfile.schoolName || 'School Admin',
+              status: userProfile.schoolStatus || 'ACTIVE'
+            });
           }
+        } else if (userProfile && (userProfile.role === 'superadmin' || userProfile.role === 'super_admin')) {
+          setSchoolData({ id: 'superadmin', name: 'Super Admin', status: 'ACTIVE' });
         }
       } catch (error) {
         console.error("Error fetching school data:", error);
+        if (userProfile?.schoolId) {
+          setSchoolData({
+            id: userProfile.schoolId,
+            name: userProfile.schoolName || 'School Admin',
+            status: userProfile.schoolStatus || 'ACTIVE'
+          });
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchSchoolData();
+
+    return () => {
+      if (unsubModules) unsubModules();
+    };
   }, [userProfile, navigate]);
 
   useEffect(() => {

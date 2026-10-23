@@ -6,7 +6,10 @@ const SOCKET_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.r
 
 export const socket = io(SOCKET_URL, {
   autoConnect: true,
-  reconnection: true
+  reconnection: true,
+  auth: (cb) => {
+    cb({ token: localStorage.getItem('token') });
+  }
 });
 
 // Mock configuration (legacy credentials removed; active calls use Express REST API & Socket.io)

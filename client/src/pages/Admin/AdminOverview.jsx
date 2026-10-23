@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getSubCollection, getNotices, subscribeToSubCollection, subscribeToNotices, subscribeToInvoices, cleanupOldChatAudio } from '../../firebase/firestore';
-import { doc, getDoc, updateDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getSubCollection, getNotices, subscribeToSubCollection, subscribeToNotices, subscribeToInvoices, cleanupOldChatAudio, updateSubDocument } from '../../firebase/firestore';
 import ConfirmModal from '../../components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { 
@@ -98,13 +96,12 @@ export default function AdminOverview() {
 
   // Fetch dashboard config
   useEffect(() => {
-    const fetchConfig = async () => {
+    const fetchConfig = () => {
       if (userProfile?.uid) {
         try {
-          const userDoc = await getDoc(doc(db, 'users', userProfile.uid));
-          if (userDoc.exists() && userDoc.data().dashboardConfig) {
-            const savedConfig = userDoc.data().dashboardConfig;
-            // Merge with default config to ensure new keys aren't missing
+          const localConfig = localStorage.getItem(`dashboardConfig_${userProfile.uid}`);
+          if (localConfig) {
+            const savedConfig = JSON.parse(localConfig);
             const mergedConfig = {
               metrics: { ...defaultConfig.metrics, ...(savedConfig.metrics || {}) },
               widgets: { ...defaultConfig.widgets, ...(savedConfig.widgets || {}) }
@@ -123,11 +120,12 @@ export default function AdminOverview() {
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
-      await updateDoc(doc(db, 'users', userProfile.uid), {
-        dashboardConfig: tempConfig
-      });
+      if (userProfile?.uid) {
+        localStorage.setItem(`dashboardConfig_${userProfile.uid}`, JSON.stringify(tempConfig));
+      }
       setConfig(tempConfig);
       setIsConfigModalOpen(false);
+      toast.success("Dashboard layout saved");
     } catch (error) {
       console.error("Error saving config:", error);
     } finally {
@@ -137,7 +135,7 @@ export default function AdminOverview() {
 
   const handleDismissAlert = async (alertId) => {
     try {
-      await updateDoc(doc(db, `schools/${schoolId}/notifications`, alertId), {
+      await updateSubDocument(schoolId, 'notifications', alertId, {
         read: true,
         resolvedAt: new Date().toISOString()
       });
@@ -149,76 +147,72 @@ export default function AdminOverview() {
   };
 
   useEffect(() => {
-    if (!schoolId) return;
+    if (!schoolId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     let studentsUnsub, staffUnsub, classesUnsub, noticesUnsub, invoicesUnsub, payrollUnsub, calendarUnsub, alertsUnsub;
 
-    studentsUnsub = subscribeToSubCollection(schoolId, 'students', (data) => {
-      setStats(prev => ({ ...prev, students: data.length }));
-    });
-
-    staffUnsub = subscribeToSubCollection(schoolId, 'teachers', (data) => {
-      setStats(prev => ({ ...prev, staff: data.length }));
-    });
-
-    classesUnsub = subscribeToSubCollection(schoolId, 'classes', (data) => {
-      setStats(prev => ({ ...prev, classes: data.length }));
-    });
-
-    noticesUnsub = subscribeToNotices(schoolId, null, (data) => {
-      setStats(prev => ({ ...prev, notices: data.length }));
-      setRecentNotices(data.slice(0, 3));
-      setLoading(false); // Stop loading after notices load
-    });
-
-    invoicesUnsub = subscribeToInvoices(schoolId, (invoicesData) => {
-      let expected = 0, collected = 0;
-      invoicesData.forEach(inv => {
-        const amount = Number(inv.amount || 0);
-        expected += amount;
-        if(inv.status === 'paid') collected += amount;
+    try {
+      studentsUnsub = subscribeToSubCollection(schoolId, 'students', (data) => {
+        setStats(prev => ({ ...prev, students: data?.length || 0 }));
       });
-      const pct = expected > 0 ? Math.round((collected / expected) * 100) : 0;
-      setSystemStatus(prev => ({ ...prev, feeCollectedPct: pct, feesActive: invoicesData.length > 0 }));
-    });
 
-    payrollUnsub = subscribeToSubCollection(schoolId, 'payroll', (data) => {
-      const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-      const isProcessed = data.some(p => p.month === currentMonth);
-      setSystemStatus(prev => ({ ...prev, payrollProcessed: isProcessed, payrollActive: data.length > 0 }));
-    });
-
-    calendarUnsub = subscribeToSubCollection(schoolId, 'calendar', (data) => {
-      const upcoming = data.filter(e => new Date(e.date) >= new Date()).length;
-      setSystemStatus(prev => ({ ...prev, activeEvents: upcoming }));
-    });
-
-    // Subscriptions for pending attendance alerts
-    const alertsQuery = query(
-      collection(db, `schools/${schoolId}/notifications`),
-      where('type', '==', 'attendance_pending')
-    );
-    alertsUnsub = onSnapshot(alertsQuery, (snapshot) => {
-      const alerts = [];
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.read === false) {
-          alerts.push({ id: docSnap.id, ...data });
-        }
+      staffUnsub = subscribeToSubCollection(schoolId, 'teachers', (data) => {
+        setStats(prev => ({ ...prev, staff: data?.length || 0 }));
       });
-      // Sort by createdAt desc in memory to bypass composite index requirement
-      alerts.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
+
+      classesUnsub = subscribeToSubCollection(schoolId, 'classes', (data) => {
+        setStats(prev => ({ ...prev, classes: data?.length || 0 }));
       });
-      setPendingAttendanceAlerts(alerts);
-    }, (error) => {
-      console.error("Error fetching pending attendance alerts:", error);
-    });
+
+      noticesUnsub = subscribeToNotices(schoolId, null, (data) => {
+        setStats(prev => ({ ...prev, notices: data?.length || 0 }));
+        setRecentNotices((data || []).slice(0, 3));
+        setLoading(false);
+      });
+
+      invoicesUnsub = subscribeToInvoices(schoolId, (invoicesData) => {
+        let expected = 0, collected = 0;
+        (invoicesData || []).forEach(inv => {
+          const amount = Number(inv.amount || 0);
+          expected += amount;
+          if (inv.status === 'paid') collected += amount;
+        });
+        const pct = expected > 0 ? Math.round((collected / expected) * 100) : 0;
+        setSystemStatus(prev => ({ ...prev, feeCollectedPct: pct, feesActive: (invoicesData || []).length > 0 }));
+      });
+
+      payrollUnsub = subscribeToSubCollection(schoolId, 'payroll', (data) => {
+        const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        const isProcessed = (data || []).some(p => p.month === currentMonth);
+        setSystemStatus(prev => ({ ...prev, payrollProcessed: isProcessed, payrollActive: (data || []).length > 0 }));
+      });
+
+      calendarUnsub = subscribeToSubCollection(schoolId, 'calendar', (data) => {
+        const upcoming = (data || []).filter(e => new Date(e.date) >= new Date()).length;
+        setSystemStatus(prev => ({ ...prev, activeEvents: upcoming }));
+      });
+
+      alertsUnsub = subscribeToSubCollection(schoolId, 'notifications', (data) => {
+        const alerts = (data || [])
+          .filter(n => n.type === 'attendance_pending' && n.read !== true)
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        setPendingAttendanceAlerts(alerts);
+      });
+    } catch (err) {
+      console.warn("Failed to subscribe to collections in AdminOverview:", err);
+    }
+
+    // Safety timeout: ensure dashboard is visible within 300ms even if network subscriptions are still streaming
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 300);
 
     return () => {
+      clearTimeout(timer);
       if (studentsUnsub) studentsUnsub();
       if (staffUnsub) staffUnsub();
       if (classesUnsub) classesUnsub();
@@ -276,7 +270,7 @@ export default function AdminOverview() {
   const visibleStatCards = allStatCards.filter(card => config.metrics[card.id] !== false);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-24">
+    <div className="w-full pb-16">
       <div className="space-y-6 animate-fade-in-up">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

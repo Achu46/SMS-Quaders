@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getSubCollection, updateSubDocument, addSubDocument, subscribeToSubCollection } from '../../firebase/firestore';
-import { getDoc, doc, updateDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { getSubCollection, updateSubDocument, addSubDocument, subscribeToSubCollection, deleteSubDocument } from '../../firebase/firestore';
+import { doc, getDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { uploadFileToCloudinaryOrFirebase, uploadCustomDataFiles } from '../../utils/cloudinary';
 import { LuSearch as Search, LuShieldCheck as ShieldCheck, LuMail as Mail, LuUsers as Users, LuCircleCheck as CheckCircle2, LuX as X, LuCloudUpload as UploadCloud, LuFileText as FileText, LuExternalLink as ExternalLink, LuDownload as Download, LuFileSpreadsheet as FileSpreadsheet, LuUserPlus as UserPlus, LuEye as Eye, LuFilter as Filter, LuLink as LinkIcon, LuCopy as CopyIcon, LuTrash2 as Trash, LuFileDown as FileDown } from 'react-icons/lu';
@@ -76,7 +76,7 @@ export default function StaffAssignment() {
 
   const handleDeleteStaff = async (staffId) => {
     try {
-      await deleteDoc(doc(db, `schools/${schoolId}/teachers`, staffId));
+      await deleteSubDocument(schoolId, 'teachers', staffId);
       toast.success("Staff member deleted successfully!");
       setConfirmDeleteState({ isOpen: false, id: null, name: '' });
     } catch (error) {
@@ -207,8 +207,10 @@ export default function StaffAssignment() {
 
     // Fetch school name once
     getDoc(doc(db, 'schools', schoolId)).then(snap => {
-      if (snap.exists()) setSchoolName(snap.data().schoolName || 'School');
-    });
+      if (snap && (typeof snap.exists === 'function' ? snap.exists() : snap.exists)) {
+        setSchoolName(snap.data()?.schoolName || 'School');
+      }
+    }).catch(err => console.warn('Could not fetch school name:', err));
 
     teachersUnsub = subscribeToSubCollection(schoolId, 'teachers', (data) => {
       setStaff(data);
@@ -225,8 +227,9 @@ export default function StaffAssignment() {
     const rolesRef = collection(db, `schools/${schoolId}/roles`);
     getDocs(rolesRef).then(snapshot => {
       const rolesData = [];
-      snapshot.forEach(doc => {
-        rolesData.push(doc.id);
+      const docsList = snapshot?.docs || (Array.isArray(snapshot) ? snapshot : []);
+      (typeof snapshot?.forEach === 'function' ? snapshot : docsList).forEach(docSnap => {
+        rolesData.push(docSnap.id);
       });
       if (rolesData.length > 0) {
         setAllRoles(prev => {
@@ -852,15 +855,15 @@ export default function StaffAssignment() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
+      <div className="w-full animate-fade-in-up">
         <TableSkeleton rows={5} columns={4} />
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-end mb-8">
+    <div className="w-full pb-16">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Staff Directory & Attachments</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your teachers, upload documents, and assign classes.</p>
@@ -1057,7 +1060,7 @@ export default function StaffAssignment() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">
                 <th className="p-4 pl-6">Staff Name</th>

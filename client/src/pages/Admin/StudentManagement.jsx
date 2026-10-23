@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getSubCollection, addSubDocument, updateSubDocument, subscribeToSubCollection } from '../../firebase/firestore';
-import { getDoc, doc, deleteDoc, updateDoc, onSnapshot, query, where, getDocs, collection, writeBatch } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getSubCollection, addSubDocument, updateSubDocument, subscribeToSubCollection, deleteSubDocument } from '../../firebase/firestore';
+import { db, doc, collection, query, where, getDoc, getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { uploadFileToCloudinaryOrFirebase, uploadCustomDataFiles } from '../../utils/cloudinary';
 import { 
   LuSearch as Search, LuFilter as Filter, LuUserPlus as UserPlus, LuCircleCheck as CheckCircle2, 
@@ -169,7 +168,7 @@ export default function StudentManagement() {
 
   const handleDeleteStudent = async (studentId) => {
     try {
-      await deleteDoc(doc(db, `schools/${schoolId}/students`, studentId));
+      await deleteSubDocument(schoolId, 'students', studentId);
       toast.success("Student deleted successfully!");
       setConfirmDeleteState({ isOpen: false, id: null, name: '' });
     } catch (error) {
@@ -1216,7 +1215,7 @@ export default function StudentManagement() {
 
   if (loading && !showForm) {
     return (
-      <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
+      <div className="w-full animate-fade-in-up">
         <TableSkeleton rows={5} columns={4} />
       </div>
     );
@@ -1228,7 +1227,7 @@ export default function StudentManagement() {
   const isSeatLimitWarning = !isSeatLimitReached && seatUsagePercent >= 85;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="w-full pb-16">
       {/* Seat Limit Warning Banner */}
       {isSeatLimitReached && (
         <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 flex items-center justify-between shadow-sm animate-fade-in">
@@ -1709,7 +1708,7 @@ export default function StudentManagement() {
           </div>
 
           <div className="overflow-x-auto w-full custom-scrollbar">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider">
                   <th className="py-4 px-6">Student</th>

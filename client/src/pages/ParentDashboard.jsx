@@ -2,9 +2,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { logoutUser } from '../services/auth';
-import { findStudentByAdmission, linkStudentToParent, switchActiveStudent } from '../firebase/firestore';
-import { getDoc, doc, onSnapshot, collection, query, where } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { findStudentByAdmission, linkStudentToParent, switchActiveStudent, getSchool, subscribeToSubCollection } from '../firebase/firestore';
 import TopNavbar from '../components/TopNavbar';
 import { LuCircleUser as UserCircle, LuLogOut as LogOut, LuSquareCheck as CheckSquare, LuGraduationCap as GraduationCap, LuCreditCard as CreditCard, LuLink as LinkIcon, LuBell as Bell, LuMenu as Menu, LuX as X, LuFileText as FileText, LuCalendar as Calendar, LuCoffee as Coffee, LuBuilding2 as Building2, LuTrendingUp as TrendingUp, LuCalendarClock as CalendarClock, LuMessageSquare as MessageSquare, LuUsers as Users, LuChevronDown as ChevronDown, LuPlus as Plus } from 'react-icons/lu';
 import useSchoolBranding from '../hooks/useSchoolBranding';
@@ -39,19 +37,23 @@ export default function ParentDashboard() {
   useSchoolBranding(school);
 
   useEffect(() => {
-    let unsubSchool;
+    let isMounted = true;
     if (userProfile && userProfile.role !== 'parent') {
       navigate('/');
     } else if (userProfile?.schoolId) {
-      unsubSchool = onSnapshot(doc(db, "schools", userProfile.schoolId), snap => {
-        if (snap.exists()) setSchool(snap.data());
-        setLoading(false);
-      });
+      if (userProfile.school) {
+        setSchool(userProfile.school);
+      } else {
+        getSchool(userProfile.schoolId).then(data => {
+          if (isMounted && data) setSchool(data);
+        }).catch(() => {});
+      }
+      setLoading(false);
     } else {
       setLoading(false);
     }
     return () => {
-      if (unsubSchool) unsubSchool();
+      isMounted = false;
     };
   }, [userProfile, navigate]);
 
@@ -63,18 +65,12 @@ export default function ParentDashboard() {
       return;
     }
 
-    const q = query(
-      collection(db, `schools/${userProfile.schoolId}/invoices`),
-      where("studentId", "==", userProfile.linkedStudentId)
-    );
-
-    const unsub = onSnapshot(q, (snapshot) => {
+    const unsub = subscribeToSubCollection(userProfile.schoolId, 'invoices', (invoices) => {
       let count = 0;
       let overdue = false;
       const today = new Date();
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.status !== 'Paid') {
+      (invoices || []).forEach(data => {
+        if (data.studentId === userProfile.linkedStudentId && data.status !== 'PAID' && data.status !== 'Paid') {
           count++;
           if (data.dueDate && new Date(data.dueDate + 'T23:59:59') < today) {
             overdue = true;
@@ -83,11 +79,11 @@ export default function ParentDashboard() {
       });
       setUnpaidFeeCount(count);
       setHasOverdueFees(overdue);
-    }, (err) => {
-      console.error("Error subscribing to parent fee invoices:", err);
     });
 
-    return () => unsub();
+    return () => {
+      if (unsub) unsub();
+    };
   }, [userProfile?.schoolId, userProfile?.linkedStudentId]);
 
   // Close sidebar on route change for mobile

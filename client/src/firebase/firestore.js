@@ -13,10 +13,19 @@ export const getSubCollection = async (schoolId, collectionName) => {
   }
 };
 
+export const notifyCollectionChange = (collectionName, detail = {}) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(`quaders_collection_${collectionName}`, { detail }));
+    window.dispatchEvent(new CustomEvent('quaders_any_collection_change', { detail: { collection: collectionName, ...detail } }));
+  }
+};
+
 export const addSubDocument = async (schoolId, collectionName, data) => {
   try {
     if (!schoolId) return null;
-    return await api.post(`/schools/${schoolId}/collections/${collectionName}`, data);
+    const res = await api.post(`/schools/${schoolId}/collections/${collectionName}`, data);
+    notifyCollectionChange(collectionName, { action: 'create', doc: res, schoolId });
+    return res;
   } catch (error) {
     console.error(`Error adding to collection ${collectionName}:`, error);
     throw error;
@@ -26,7 +35,9 @@ export const addSubDocument = async (schoolId, collectionName, data) => {
 export const updateSubDocument = async (schoolId, collectionName, id, data) => {
   try {
     if (!schoolId) return null;
-    return await api.put(`/schools/${schoolId}/collections/${collectionName}/${id}`, data);
+    const res = await api.put(`/schools/${schoolId}/collections/${collectionName}/${id}`, data);
+    notifyCollectionChange(collectionName, { action: 'update', doc: res, id, schoolId });
+    return res;
   } catch (error) {
     console.error(`Error updating document ${id} in ${collectionName}:`, error);
     throw error;
@@ -36,39 +47,65 @@ export const updateSubDocument = async (schoolId, collectionName, id, data) => {
 export const deleteSubDocument = async (schoolId, collectionName, id) => {
   try {
     if (!schoolId) return null;
-    return await api.delete(`/schools/${schoolId}/collections/${collectionName}/${id}`);
+    const res = await api.delete(`/schools/${schoolId}/collections/${collectionName}/${id}`);
+    notifyCollectionChange(collectionName, { action: 'delete', id, schoolId });
+    return res;
   } catch (error) {
     console.error(`Error deleting document ${id} from ${collectionName}:`, error);
     throw error;
   }
 };
 
-// Real-Time SubCollection Subscription via Socket.io
+// Real-Time SubCollection Subscription via Local Events & Socket.io
 export const subscribeToSubCollection = (schoolId, collectionName, callback) => {
   let isSubscribed = true;
 
-  if (schoolId) {
-    socket.emit("join_tenant", schoolId);
-  }
+  const joinRoom = () => {
+    if (schoolId) {
+      const token = localStorage.getItem('token');
+      socket.emit("join_tenant", { schoolId, token });
+    }
+  };
+
+  joinRoom();
+  socket.on("connect", joinRoom);
 
   // Initial fetch
   getSubCollection(schoolId, collectionName).then((data) => {
     if (isSubscribed) callback(data || []);
   });
 
-  const handleUpdate = (payload) => {
+  const refreshData = () => {
+    if (!isSubscribed) return;
+    getSubCollection(schoolId, collectionName).then((data) => {
+      if (isSubscribed) callback(data || []);
+    });
+  };
+
+  const handleSocketUpdate = (payload) => {
     if (payload.collection === collectionName && isSubscribed) {
-      getSubCollection(schoolId, collectionName).then((data) => {
-        if (isSubscribed) callback(data || []);
-      });
+      refreshData();
     }
   };
 
-  socket.on("collection_change", handleUpdate);
+  const handleLocalUpdate = () => {
+    if (isSubscribed) {
+      refreshData();
+    }
+  };
+
+  socket.on("collection_change", handleSocketUpdate);
+  if (typeof window !== 'undefined') {
+    window.addEventListener(`quaders_collection_${collectionName}`, handleLocalUpdate);
+  }
 
   return () => {
     isSubscribed = false;
-    socket.off("collection_change", handleUpdate);
+    socket.off("connect", joinRoom);
+    socket.off("collection_change", handleSocketUpdate);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener(`quaders_collection_${collectionName}`, handleLocalUpdate);
+    }
   };
 };
 
@@ -627,11 +664,32 @@ export const createNotice = async (schoolId, noticeData) => {
 };
 
 export const getNotices = async (schoolId) => getSubCollection(schoolId, 'notices');
-export const subscribeToNotices = (schoolId, callback) => subscribeToSubCollection(schoolId, 'notices', callback);
 
-export const subscribeToGlobalNotices = (schoolId, callback) => {
+export const subscribeToNotices = (schoolId, audienceOrCb, callback) => {
+  const cb = typeof audienceOrCb === 'function' ? audienceOrCb : callback;
+  const audience = typeof audienceOrCb === 'string' ? audienceOrCb : null;
+  return subscribeToSubCollection(schoolId, 'notices', (data) => {
+    let filtered = data || [];
+    if (audience && audience !== 'all') {
+      filtered = filtered.filter(n => !n.audience || n.audience === audience || n.audience === 'all');
+    }
+    if (typeof cb === 'function') {
+      cb(filtered);
+    }
+  });
+};
+
+export const subscribeToGlobalNotices = (schoolId, audienceOrCb, callback) => {
+  const cb = typeof audienceOrCb === 'function' ? audienceOrCb : callback;
+  const audience = typeof audienceOrCb === 'string' ? audienceOrCb : null;
   return subscribeToSubCollection(schoolId, 'notices', (allNotices) => {
-    callback((allNotices || []).filter(n => !n.classId || n.isGlobal));
+    let filtered = (allNotices || []).filter(n => !n.classId || n.isGlobal);
+    if (audience && audience !== 'all') {
+      filtered = filtered.filter(n => !n.audience || n.audience === audience || n.audience === 'all');
+    }
+    if (typeof cb === 'function') {
+      cb(filtered);
+    }
   });
 };
 
