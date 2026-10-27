@@ -3,8 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { LuUsers as Users, LuLogOut as LogOut, LuSquareCheck as CheckSquare, LuGraduationCap as GraduationCap, LuMessageSquare as MessageSquare, LuLock as Lock, LuBell as Bell, LuMenu as Menu, LuX as X, LuFileText as FileText, LuCalendar as Calendar, LuBuilding2 as Building2, LuCalendarDays, LuBookOpen, LuCalendarOff, LuTrendingUp, LuFolderDown, LuCalendarClock, LuBanknote, LuUser as UserIcon, LuBus } from 'react-icons/lu';
 import { logoutUser } from '../firebase/auth';
 import { useAuth } from '../context/AuthContext';
-import { getDoc, doc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { getSchool, getSubCollection, addSubDocument, updateSubDocument } from '../firebase/firestore';
 import TopNavbar from '../components/TopNavbar';
 import useSchoolBranding from '../hooks/useSchoolBranding';
 import { useNotifications } from '../context/NotificationContext';
@@ -26,71 +25,66 @@ export default function TeacherDashboard() {
 
   // Fallback check to ensure role is correct
   useEffect(() => {
-    let unsubSchool;
+    let isMounted = true;
     if (userProfile && userProfile.role !== 'teacher') {
       navigate('/');
-    } else if (userProfile?.schoolId) {
-      // Fetch school info for branding/name dynamically
-      unsubSchool = onSnapshot(doc(db, "schools", userProfile.schoolId), snap => {
-        if (snap.exists()) setSchool(snap.data());
-      });
+      return;
+    } 
+    
+    if (userProfile?.schoolId) {
+      if (userProfile.school) {
+        setSchool(userProfile.school);
+      } else {
+        getSchool(userProfile.schoolId).then(data => {
+          if (isMounted && data) setSchool(data);
+        }).catch(() => {});
+      }
         
-        // Also fetch teacher doc for profile completion
-        if (userProfile.role === 'teacher') {
-          const uid = currentUser?.uid || userProfile?.uid;
-          if (uid) {
-            const q = query(collection(db, `schools/${userProfile.schoolId}/teachers`), where("userId", "==", uid));
-            getDocs(q).then(async (teacherSnap) => {
-               if (!teacherSnap.empty) {
-                 setTeacherDoc(teacherSnap.docs[0].data());
-                 setLoading(false);
-               } else if (currentUser?.email) {
-                 // Fallback to email lookup
-                 const emailQ = query(collection(db, `schools/${userProfile.schoolId}/teachers`), where("email", "==", currentUser.email.trim()));
-                 const emailSnap = await getDocs(emailQ);
-                 if (!emailSnap.empty) {
-                   const docId = emailSnap.docs[0].id;
-                   const { updateDoc } = await import('firebase/firestore');
-                   await updateDoc(doc(db, `schools/${userProfile.schoolId}/teachers`, docId), {
-                     userId: uid
-                   });
-                   setTeacherDoc({ ...emailSnap.docs[0].data(), userId: uid });
-                   setLoading(false);
-                 } else {
-                   // Auto-create document if completely missing!
-                   const { addSubDocument } = await import('../firebase/firestore');
-                   const firstName = userProfile.name ? userProfile.name.split(' ')[0] : currentUser.email.split('@')[0];
-                   const lastName = userProfile.name ? userProfile.name.split(' ').slice(1).join(' ') : '';
-                   const newTeacherDoc = {
-                     userId: uid,
-                     email: currentUser.email,
-                     firstName,
-                     lastName,
-                     name: userProfile.name || currentUser.email.split('@')[0],
-                     role: 'Staffs',
-                     status: 'Active',
-                     staff_type: 'teaching',
-                     createdAt: new Date().toISOString()
-                   };
-                   await addSubDocument(userProfile.schoolId, 'teachers', newTeacherDoc);
-                   setTeacherDoc(newTeacherDoc);
-                   setLoading(false);
-                 }
-               } else {
-                 setLoading(false);
-               }
-            }).catch(() => setLoading(false));
-          } else {
+      if (userProfile.role === 'teacher') {
+        const uid = currentUser?.uid || userProfile?.uid;
+        getSubCollection(userProfile.schoolId, 'teachers').then(async (teachers) => {
+          if (!isMounted) return;
+          const found = (teachers || []).find(t => 
+            (uid && t.userId === uid) || 
+            (currentUser?.email && t.email && t.email.trim().toLowerCase() === currentUser.email.trim().toLowerCase())
+          );
+          if (found) {
+            setTeacherDoc(found);
             setLoading(false);
+          } else if (currentUser?.email) {
+            const firstName = userProfile.name ? userProfile.name.split(' ')[0] : currentUser.email.split('@')[0];
+            const lastName = userProfile.name ? userProfile.name.split(' ').slice(1).join(' ') : '';
+            const newTeacherDoc = {
+              userId: uid || '',
+              email: currentUser.email,
+              firstName,
+              lastName,
+              name: userProfile.name || currentUser.email.split('@')[0],
+              role: 'Staffs',
+              status: 'Active',
+              staff_type: 'teaching',
+              createdAt: new Date().toISOString()
+            };
+            const created = await addSubDocument(userProfile.schoolId, 'teachers', newTeacherDoc).catch(() => newTeacherDoc);
+            if (isMounted) {
+              setTeacherDoc(created);
+              setLoading(false);
+            }
+          } else {
+            if (isMounted) setLoading(false);
           }
-        } else {
-          setLoading(false);
-        }
+        }).catch(() => {
+          if (isMounted) setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
     } else {
       setLoading(false);
     }
+
     return () => {
-      if (unsubSchool) unsubSchool();
+      isMounted = false;
     };
   }, [userProfile, navigate, currentUser]);
 

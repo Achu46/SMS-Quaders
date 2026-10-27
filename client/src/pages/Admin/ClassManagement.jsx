@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getSubCollection, addSubDocument, subscribeToSubCollection, updateSubDocument } from '../../firebase/firestore';
-import { deleteDoc, doc, writeBatch, collection } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getSubCollection, addSubDocument, subscribeToSubCollection, updateSubDocument, deleteSubDocument } from '../../firebase/firestore';
 import { LuBookOpen as BookOpen, LuPlus as Plus, LuTrash2 as Trash2, LuUsers as Users, LuPencil as Pencil, LuTags, LuFilter, LuX, LuFileDown, LuUpload } from 'react-icons/lu';
 import * as XLSX from 'xlsx';
 import { TableSkeleton } from '../../components/Skeleton';
@@ -211,7 +209,8 @@ export default function ClassManagement() {
     if (!classId) return;
     
     try {
-      await deleteDoc(doc(db, `schools/${schoolId}/classes`, classId));
+      await deleteSubDocument(schoolId, 'classes', classId);
+      toast.success("Class deleted successfully");
     } catch (error) {
       console.error("Error deleting class:", error);
       toast.error("Failed to delete class.");
@@ -244,7 +243,7 @@ export default function ClassManagement() {
         toast.error("Cannot delete category in use by existing classes.");
         return;
       }
-      await deleteDoc(doc(db, `schools/${schoolId}/classCategories`, catId));
+      await deleteSubDocument(schoolId, 'classCategories', catId);
       toast.success("Category deleted");
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -299,7 +298,6 @@ export default function ClassManagement() {
           return;
         }
 
-        const batch = writeBatch(db);
         let addedCount = 0;
         let skippedCount = 0;
         let categoryCreationCount = 0;
@@ -342,20 +340,18 @@ export default function ClassManagement() {
                matchedCategoryId = createdCategoriesMap.get(categoryText.toLowerCase());
              } else {
                // Create new category
-               const newCatRef = doc(collection(db, `schools/${schoolId}/classCategories`));
-               batch.set(newCatRef, {
+               const newCat = await addSubDocument(schoolId, 'classCategories', {
                  name: categoryText,
                  isDefault: false,
                  createdAt: new Date().toISOString()
                });
-               matchedCategoryId = newCatRef.id;
+               matchedCategoryId = newCat.id;
                createdCategoriesMap.set(categoryText.toLowerCase(), matchedCategoryId);
                categoryCreationCount++;
              }
           }
 
-          const newClassRef = doc(collection(db, `schools/${schoolId}/classes`));
-          batch.set(newClassRef, {
+          await addSubDocument(schoolId, 'classes', {
             name: className,
             section: section,
             categoryId: matchedCategoryId,
@@ -366,7 +362,6 @@ export default function ClassManagement() {
         }
 
         if (addedCount > 0 || categoryCreationCount > 0) {
-          await batch.commit();
           toast.success(`Imported ${addedCount} classes and created ${categoryCreationCount} categories. Skipped ${skippedCount} existing/invalid rows.`);
           setShowImportModal(false);
           setImportFile(null);
@@ -391,14 +386,14 @@ export default function ClassManagement() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
+      <div className="w-full animate-fade-in-up">
         <TableSkeleton rows={5} columns={4} />
       </div>
     );
   }
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto w-full">
+    <div className="w-full pb-16">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 w-full">
         <div className="w-full md:w-auto">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Class & Section Management</h1>

@@ -169,6 +169,9 @@ function App() {
             <Route path="/register" element={<SchoolRegistration />} />
             <Route path="/register-school" element={<SchoolRegistration />} />
             <Route path="/school-registration" element={<SchoolRegistration />} />
+            <Route path="/signup" element={<SchoolRegistration />} />
+            <Route path="/sign-up" element={<SchoolRegistration />} />
+            <Route path="/register/teacher/:schoolId" element={<TeacherRegistration />} />
             <Route path="/admission/:schoolId" element={<PublicAdmissionForm />} />
             <Route path="/admission/form/:schoolId" element={<PublicAdmissionForm />} />
             <Route path="/apply/:schoolId" element={<PublicAdmissionForm />} />

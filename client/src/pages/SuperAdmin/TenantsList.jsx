@@ -15,7 +15,16 @@ export default function TenantsList() {
     setLoading(true);
     const unsub = subscribeToAllSchools((data) => {
       // Apply status filter locally since subscription gets all schools
-      const filteredData = filterStatus === 'all' ? data : data.filter(s => s.status === filterStatus);
+      const filteredData = filterStatus === 'all' 
+        ? data 
+        : data.filter(s => {
+            const st = (s.status || '').toLowerCase();
+            const target = filterStatus.toLowerCase();
+            if (target === 'approved' || target === 'active') {
+              return st === 'approved' || st === 'active';
+            }
+            return st === target;
+          });
       setSchools(filteredData);
       setLoading(false);
     });
@@ -28,8 +37,9 @@ export default function TenantsList() {
   }, [filterStatus, searchQuery]);
 
   const getStatusBadge = (status) => {
-    switch (status) {
+    switch ((status || '').toLowerCase()) {
       case 'approved':
+      case 'active':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"><CheckCircle2 size={14} /> Active</span>;
       case 'pending':
         return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200"><Clock size={14} /> Pending</span>;
@@ -95,7 +105,7 @@ export default function TenantsList() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">
                 <th className="p-4 pl-6">School Name</th>

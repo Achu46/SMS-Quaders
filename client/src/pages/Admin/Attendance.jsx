@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { subscribeToSubCollection, subscribeToStudentsByClass, subscribeToAttendance, saveAttendance, getAttendanceForClass, getAttendanceSettings, updateStudentRunningStatsAndFlags } from '../../firebase/firestore';
+import { db, doc, collection, query, where, orderBy, getDoc, getDocs, updateDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { doc, onSnapshot, updateDoc, setDoc, collection, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../../firebase/config';
 import { LuCalendar as CalendarIcon, LuCircleCheck as CheckCircle2, LuSave as Save, LuUsers as Users, LuCircleAlert as AlertCircle, LuLayoutDashboard as DashboardIcon, LuClipboardCheck as ClipboardIcon, LuChevronDown as ChevronDown, LuChevronUp as ChevronUp, LuTrendingUp as TrendIcon, LuDownload as DownloadIcon, LuFileSpreadsheet as ExcelIcon } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';

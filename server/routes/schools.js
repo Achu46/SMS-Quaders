@@ -46,17 +46,11 @@ router.get('/:id', async (req, res) => {
     const prisma = req.prisma;
     const school = await prisma.school.findUnique({
       where: { id: req.params.id },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        setupCompleted: true,
-        board: true,
-        address: true,
-        phone: true,
-        logoUrl: true,
-        createdAt: true,
-        updatedAt: true
+      include: {
+        modules: {
+          where: { isEnabled: true },
+          select: { moduleId: true }
+        }
       }
     });
 
@@ -64,7 +58,11 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'School not found' });
     }
 
-    res.json(school);
+    const { modules, ...schoolData } = school;
+    res.json({
+      ...schoolData,
+      permittedModules: modules ? modules.map(m => m.moduleId) : []
+    });
   } catch (error) {
     console.error('Fetch school error:', error);
     res.status(500).json({ error: 'Failed to fetch school details' });

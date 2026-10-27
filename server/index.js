@@ -85,14 +85,28 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id} (user: ${socket.user?.id || 'anonymous'})`);
   
-  socket.on('join_tenant', (schoolId) => {
-    if (!socket.user) {
+  socket.on('join_tenant', (payload) => {
+    const schoolId = typeof payload === 'object' && payload !== null ? payload.schoolId : payload;
+    const providedToken = typeof payload === 'object' && payload !== null ? payload.token : null;
+
+    let user = socket.user;
+    if (!user && providedToken) {
+      const secret = process.env.JWT_SECRET || 'secret-key-for-dev';
+      try {
+        user = jwt.verify(providedToken, secret);
+        socket.user = user;
+      } catch (e) {
+        console.warn(`Invalid token provided in join_tenant:`, e.message);
+      }
+    }
+
+    if (!user) {
       console.warn(`Socket ${socket.id} attempted to join tenant ${schoolId} without authentication`);
       return socket.emit('error', { message: 'Authentication required to join tenant room', code: 'UNAUTHORIZED' });
     }
 
-    const userRole = (socket.user.role || '').toUpperCase();
-    const userSchoolId = socket.user.schoolId;
+    const userRole = (user.role || '').toUpperCase();
+    const userSchoolId = user.schoolId;
 
     if (userRole === 'SUPER_ADMIN' || (userSchoolId && userSchoolId === schoolId)) {
       socket.join(schoolId);

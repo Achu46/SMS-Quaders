@@ -13,9 +13,24 @@ function cleanParts(args) {
 
 // 1. Reference Creators
 export function doc(...args) {
-  const parts = cleanParts(args);
+  let parts = [];
+  let generatedId = null;
+
+  if (args[0] && typeof args[0] === 'object' && args[0].type === 'collection') {
+    const colPath = args[0].path;
+    const customId = args[1];
+    if (typeof customId === 'string' && customId.trim()) {
+      parts = [colPath, customId.trim()];
+    } else {
+      generatedId = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      parts = [colPath, generatedId];
+    }
+  } else {
+    parts = cleanParts(args);
+  }
+
   const path = parts.join('/');
-  const id = parts[parts.length - 1] || '';
+  const id = generatedId || parts[parts.length - 1] || '';
   const parentCollection = parts.slice(0, -1).join('/');
 
   return {
@@ -60,8 +75,25 @@ export function limit(n) {
 }
 
 export function writeBatch() {
+  const operations = [];
   return {
+    set: (docRef, data) => {
+      operations.push(() => setDoc(docRef, data));
+    },
+    update: (docRef, data) => {
+      operations.push(() => updateDoc(docRef, data));
+    },
+    delete: (docRef) => {
+      operations.push(() => deleteDoc(docRef));
+    },
     commit: async () => {
+      for (const op of operations) {
+        try {
+          await op();
+        } catch (e) {
+          console.warn('Batch operation error:', e);
+        }
+      }
       console.log('Batch commit mocked successfully.');
     }
   };
@@ -104,7 +136,13 @@ export async function getDocs(queryRef) {
   const ref = isQuery ? queryRef.ref : queryRef;
 
   if (!ref || !ref.path) {
-    return { empty: true, docs: [] };
+    const emptyDocs = [];
+    return {
+      empty: true,
+      docs: emptyDocs,
+      size: 0,
+      forEach: (cb) => emptyDocs.forEach(cb)
+    };
   }
 
   const parts = ref.path.split('/');
@@ -122,6 +160,10 @@ export async function getDocs(queryRef) {
     console.warn(`Mock getDocs failed for path: ${ref.path}`, err);
   }
 
+  if (!Array.isArray(list)) {
+    list = Array.isArray(list?.data) ? list.data : [];
+  }
+
   // Handle constraints (where filters)
   if (isQuery && Array.isArray(queryRef.constraints)) {
     queryRef.constraints.forEach(c => {
@@ -135,12 +177,16 @@ export async function getDocs(queryRef) {
     });
   }
 
+  const docs = list.map(item => ({
+    id: item.id || item._id,
+    data: () => item
+  }));
+
   return {
-    empty: list.length === 0,
-    docs: list.map(item => ({
-      id: item.id,
-      data: () => item
-    }))
+    empty: docs.length === 0,
+    docs,
+    size: docs.length,
+    forEach: (cb) => docs.forEach(cb)
   };
 }
 

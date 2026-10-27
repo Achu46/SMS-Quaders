@@ -38,7 +38,19 @@ class ApiClient {
       if (response.status === 401) {
         // Unauthorized token expired
         this.setToken(null);
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        const path = window.location.pathname;
+        const isPublicPath = path === '/' || 
+          path === '/login' || 
+          path === '/forgot-password' || 
+          path.startsWith('/register') || 
+          path.startsWith('/school-registration') ||
+          path.startsWith('/signup') ||
+          path.startsWith('/sign-up') ||
+          path.startsWith('/admission') || 
+          path.startsWith('/apply') || 
+          path.startsWith('/leads');
+
+        if (!isPublicPath) {
           window.location.href = '/login';
         }
       }
