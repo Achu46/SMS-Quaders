@@ -99,7 +99,7 @@ model User {
   classAssignments ClassAssignment[]
   passwordResetTokens PasswordResetToken[]
   assignedTickets  SupportTicket[]   @relation("AssignedTickets")
-  parent           Parent?
+  parents          Parent[]
   assessmentsTaught Assessment[]
   gradeOverrides   AssessmentGrade[] @relation("GradeOverrides")
 
@@ -229,7 +229,7 @@ model Parent {
   schoolId  String
   school    School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   
-  userId    String?         @unique
+  userId    String?
   user      User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   name      String
   email     String?
@@ -289,7 +289,7 @@ model Student {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  @@unique([schoolId, admissionNo])
+  @@index([schoolId, admissionNo])
   @@index([schoolId])
   @@index([classId])
   @@index([sectionId])

@@ -182,7 +182,7 @@ router.get('/invoices', authenticateToken, requireTenantAccess, async (req, res)
 
     // Strict Parent Authorization Scoping: Parents can ONLY see invoices for their linked children
     if (req.user.role === 'PARENT') {
-      const parent = await prisma.parent.findUnique({
+      const parent = await prisma.parent.findFirst({
         where: { userId: req.user.id },
         include: { students: true }
       });
