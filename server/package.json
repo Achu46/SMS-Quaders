@@ -11,6 +11,7 @@
     "db:init": "node prisma/migrate.js",
     "db:check": "node prisma/check_db.js",
     "db:push": "prisma db push",
+    "start:prod": "prisma db push --accept-data-loss --skip-generate && node index.js",
     "build": "prisma generate",
     "postinstall": "prisma generate"
   },
