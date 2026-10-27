@@ -179,6 +179,9 @@ const readinessHandler = async (req, res) => {
   }
 };
 
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', name: 'Quaders Backend API', time: new Date().toISOString() });
+});
 app.get('/health', livenessHandler);
 app.get('/api/health', livenessHandler);
 app.get('/health/ready', readinessHandler);
@@ -238,6 +241,6 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Quaders server running on port ${PORT}`);
 });
