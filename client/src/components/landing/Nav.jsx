@@ -51,10 +51,6 @@ export default function Nav({ scrollToSection }) {
           
           <div className="hidden md:flex gap-8 items-center font-medium text-slate-500 dark:text-[#94a3b8]">
             <button onClick={() => scrollToSection('home')} className="hover:text-primary-500 dark:hover:text-primary-400 transition-colors">Home</button>
-            <button onClick={() => scrollToSection('ai-assistant')} className="text-orange-600 dark:text-orange-400 font-bold hover:text-orange-500 flex items-center gap-1 transition-colors">
-              <span>AI Assistant</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 font-extrabold uppercase">New</span>
-            </button>
             <button onClick={() => scrollToSection('services')} className="hover:text-primary-500 dark:hover:text-primary-400 transition-colors">Services</button>
             <button onClick={() => scrollToSection('pricing')} className="hover:text-primary-500 dark:hover:text-primary-400 transition-colors">Pricing</button>
           </div>

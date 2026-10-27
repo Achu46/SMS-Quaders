@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import Nav from '../components/landing/Nav';
 import Hero from '../components/landing/Hero';
 import TrustBar from '../components/landing/TrustBar';
-import AIAssistantHighlight from '../components/landing/AIAssistantHighlight';
 import CoreWorkflows from '../components/landing/CoreWorkflows';
 import Pricing from '../components/landing/Pricing';
 import WhyQuaders from '../components/landing/WhyQuaders';
@@ -39,7 +38,6 @@ export default function LandingPage() {
       <main>
         <Hero scrollToSection={scrollToSection} />
         <TrustBar />
-        <AIAssistantHighlight />
         <CoreWorkflows />
         <Pricing />
         <WhyQuaders />

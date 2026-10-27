@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, Sparkles, MeshDistortMaterial } from '@react-three/drei';
-import { LuChevronRight, LuMouse, LuSparkles as SparklesIcon, LuBot as BotIcon, LuArrowRight as ArrowRightIcon } from 'react-icons/lu';
+import { LuChevronRight } from 'react-icons/lu';
 import { useNavigate } from 'react-router-dom';
 
 // 3D centerpiece: cluster of abstract shapes
@@ -154,19 +154,6 @@ export default function Hero({ scrollToSection }) {
           initial="hidden"
           animate="show"
         >
-          {/* AI Feature Announcement Pill */}
-          <motion.div 
-            variants={itemVars} 
-            onClick={() => scrollToSection('ai-assistant')}
-            className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/15 via-amber-500/15 to-orange-500/15 hover:from-orange-500/25 hover:to-amber-500/25 border border-orange-500/40 text-orange-600 dark:text-orange-400 text-xs sm:text-sm font-bold mb-6 shadow-md transition-all hover:scale-105"
-          >
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-            </span>
-            <span>✨ Introducing AI Assistant: Real-Time Intelligence & Reports</span>
-            <ArrowRightIcon size={14} className="text-orange-500" />
-          </motion.div>
 
           <div className="flex flex-wrap justify-center gap-x-3 mb-6">
             {titleText.map((word, i) => (
@@ -186,7 +173,7 @@ export default function Hero({ scrollToSection }) {
             variants={itemVars}
             className="text-lg lg:text-xl text-slate-600 dark:text-[#94a3b8] max-w-2xl mx-auto mb-8 leading-relaxed"
           >
-            Quaders is the next-gen AI-powered ERP for schools. Ask anything about attendance, fees, or exam marks, and receive instant, live data answers with zero hallucination.
+            Quaders is the modern all-in-one ERP platform for schools. Manage student records, fees, attendance, examinations, and staff operations with real-time accuracy.
           </motion.p>
 
           {/* Action CTAs */}
@@ -201,58 +188,14 @@ export default function Hero({ scrollToSection }) {
               Get Started <LuChevronRight size={20} />
             </button>
             <button 
-              onClick={() => scrollToSection('ai-assistant')}
-              className="w-full sm:w-auto px-7 py-4 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/10 hover:from-orange-500/20 hover:to-amber-500/20 border border-orange-500/40 text-orange-600 dark:text-orange-400 font-bold text-base sm:text-lg rounded-full hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
+              onClick={() => scrollToSection('services')}
+              className="w-full sm:w-auto px-7 py-4 bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white font-bold text-base sm:text-lg rounded-full hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
             >
-              <SparklesIcon size={18} className="text-orange-500" />
-              <span>Explore AI Assistant</span>
+              <span>Explore Features</span>
             </button>
-          </motion.div>
-
-          {/* Hero AI Quick Query Preview Bar */}
-          <motion.div
-            variants={itemVars}
-            onClick={() => scrollToSection('ai-assistant')}
-            className="cursor-pointer max-w-2xl mx-auto p-3.5 sm:p-4 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl hover:shadow-2xl hover:border-orange-500/40 transition-all text-left group"
-          >
-            <div className="flex items-center justify-between gap-2 mb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-sm">
-                  <BotIcon size={15} />
-                </div>
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Ask AI Anything about your school records:
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                Live Demo <ArrowRightIcon size={12} />
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600 transition-colors">
-                💬 "How many students are absent today?"
-              </span>
-              <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600 transition-colors">
-                💬 "Which students have pending fees?"
-              </span>
-              <span className="hidden sm:inline-block px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600 transition-colors">
-                💬 "Class 10 exam rankings"
-              </span>
-            </div>
           </motion.div>
         </motion.div>
       </div>
-      
-      {/* Scroll Cue */}
-      <motion.div 
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 text-primary-500 dark:text-primary-400 opacity-60 z-20 cursor-pointer"
-        onClick={() => scrollToSection('ai-assistant')}
-        animate={{ y: [0, 8, 0] }}
-        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-      >
-        <LuMouse size={24} />
-      </motion.div>
     </section>
   );
 }
