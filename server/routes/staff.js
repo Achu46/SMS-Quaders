@@ -1,13 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
+const { z } = require('zod');
 const { authenticateToken, requireActiveSchool, requireAcademicSetup, requireRole, requirePermission } = require('../middleware');
 
 // All staff management routes require active school + academic setup preconditions
 router.use(authenticateToken, requireActiveSchool, requireAcademicSetup);
 
+// Zod Validation Schemas
+const createStaffSchema = z.object({
+  name: z.string().min(1, 'Name is required').trim(),
+  email: z.string().email('Valid email address is required').trim().toLowerCase(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  phone: z.string().optional().nullable(),
+  employeeId: z.string().optional().nullable(),
+  roleId: z.string().min(1, 'Role selection is mandatory')
+});
+
+const updateStaffRoleSchema = z.object({
+  roleId: z.string().min(1, 'Role selection is mandatory')
+});
+
 // GET /api/staff
-// List all staff for this school
+// List all staff for this school with their assigned Role and Permissions
 router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
   try {
     const prisma = req.prisma;
@@ -25,6 +40,14 @@ router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
         phone: true,
         employeeId: true,
         status: true,
+        roleId: true,
+        customRole: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true
+          }
+        },
         staffRoleId: true,
         staffRole: {
           select: {
@@ -53,31 +76,41 @@ router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
 });
 
 // POST /api/staff
-// Create a new staff member and assign Role
-router.post('/', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+// Create a new staff member and assign Role scoped to collegeId
+router.post('/', requirePermission('staff', 'CREATE'), async (req, res) => {
   try {
     const prisma = req.prisma;
-    const schoolId = req.user.schoolId;
-    const { name, email, password, phone, employeeId, staffRoleId } = req.body;
+    const collegeId = req.user.schoolId;
 
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required' });
+    const parsed = createStaffSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues ? parsed.error.issues.map(e => e.message).join(', ') : 'Validation error';
+      return res.status(400).json({ error: msg });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const { name, email, password, phone, employeeId, roleId } = parsed.data;
+
+    const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: 'A user with this email already exists' });
     }
 
-    // Verify staffRoleId belongs to this school if provided
-    if (staffRoleId) {
-      const roleExists = await prisma.staffRole.findFirst({
-        where: { id: staffRoleId, schoolId }
-      });
-      if (!roleExists) {
-        return res.status(400).json({ error: 'Selected role does not belong to this school' });
-      }
+    // Validate that roleId belongs to the same collegeId (tenant isolation)
+    const role = await prisma.role.findFirst({
+      where: { id: roleId, collegeId },
+      include: { permissions: true }
+    });
+
+    if (!role) {
+      return res.status(400).json({ error: 'Selected role does not belong to this college/school or does not exist.' });
+    }
+
+    // Verify role has at least one active module permission
+    const hasActivePermission = role.permissions && role.permissions.some(
+      p => p.canCreate || p.canRead || p.canUpdate || p.canDelete
+    );
+    if (!hasActivePermission) {
+      return res.status(400).json({ error: `The role "${role.name}" has no active module permissions. Assign at least one permission before assigning it to staff.` });
     }
 
     const defaultPassword = password || 'Staff@123';
@@ -85,18 +118,20 @@ router.post('/', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
 
     const newStaff = await prisma.user.create({
       data: {
-        schoolId,
-        name: name.trim(),
-        email: normalizedEmail,
+        schoolId: collegeId,
+        name,
+        email,
         password: hashedPassword,
         phone: phone ? phone.trim() : null,
         employeeId: employeeId ? employeeId.trim() : null,
         role: 'STAFF',
-        staffRoleId: staffRoleId || null,
+        roleId: role.id,
         status: 'ACTIVE'
       },
       include: {
-        staffRole: true
+        customRole: {
+          include: { permissions: true }
+        }
       }
     });
 
@@ -113,33 +148,52 @@ router.post('/', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
 
 // PATCH /api/staff/:id/role
 // Update a staff member's assigned role
-router.patch('/:id/role', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.patch('/:id/role', requirePermission('staff', 'EDIT'), async (req, res) => {
   try {
     const prisma = req.prisma;
-    const schoolId = req.user.schoolId;
-    const { staffRoleId } = req.body;
+    const collegeId = req.user.schoolId;
+
+    const parsed = updateStaffRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues ? parsed.error.issues.map(e => e.message).join(', ') : 'Validation error';
+      return res.status(400).json({ error: msg });
+    }
+
+    const { roleId } = parsed.data;
 
     const staffMember = await prisma.user.findFirst({
-      where: { id: req.params.id, schoolId, role: 'STAFF' }
+      where: { id: req.params.id, schoolId: collegeId, role: 'STAFF' }
     });
 
     if (!staffMember) {
       return res.status(404).json({ error: 'Staff member not found' });
     }
 
-    if (staffRoleId) {
-      const roleExists = await prisma.staffRole.findFirst({
-        where: { id: staffRoleId, schoolId }
-      });
-      if (!roleExists) {
-        return res.status(400).json({ error: 'Selected role does not belong to this school' });
-      }
+    // Validate that roleId belongs to the same collegeId
+    const role = await prisma.role.findFirst({
+      where: { id: roleId, collegeId },
+      include: { permissions: true }
+    });
+
+    if (!role) {
+      return res.status(400).json({ error: 'Selected role does not belong to this college/school' });
+    }
+
+    const hasActivePermission = role.permissions && role.permissions.some(
+      p => p.canCreate || p.canRead || p.canUpdate || p.canDelete
+    );
+    if (!hasActivePermission) {
+      return res.status(400).json({ error: `The role "${role.name}" has no active module permissions. Assign at least one permission before assigning it to staff.` });
     }
 
     const updated = await prisma.user.update({
       where: { id: req.params.id },
-      data: { staffRoleId: staffRoleId || null },
-      include: { staffRole: true }
+      data: { roleId: role.id },
+      include: {
+        customRole: {
+          include: { permissions: true }
+        }
+      }
     });
 
     const { password: _, ...staffWithoutPassword } = updated;
@@ -150,32 +204,42 @@ router.patch('/:id/role', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res
   }
 });
 
+// DELETE /api/staff/:id
+// Delete a staff member
+router.delete('/:id', requirePermission('staff', 'DELETE'), async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const collegeId = req.user.schoolId;
+
+    const staffMember = await prisma.user.findFirst({
+      where: { id: req.params.id, schoolId: collegeId, role: 'STAFF' }
+    });
+
+    if (!staffMember) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+
+    await prisma.user.delete({
+      where: { id: req.params.id }
+    });
+
+    res.json({ message: 'Staff member deleted successfully' });
+  } catch (error) {
+    console.error('Delete staff error:', error);
+    res.status(500).json({ error: 'Failed to delete staff member' });
+  }
+});
+
 // POST /api/staff/assign-classes
 // Assign a staff member to class, section, or subject
-router.post('/assign-classes', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/assign-classes', requirePermission('staff', 'EDIT'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
     const { staffId, classId, sectionId, subjectId, isClassTeacher } = req.body;
 
     if (!staffId || !classId) {
-      return res.status(400).json({ error: 'staffId and classId are required' });
-    }
-
-    // Verify staff belongs to school
-    const staff = await prisma.user.findFirst({
-      where: { id: staffId, schoolId, role: 'STAFF' }
-    });
-    if (!staff) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    // Verify class belongs to school
-    const cls = await prisma.class.findFirst({
-      where: { id: classId, schoolId }
-    });
-    if (!cls) {
-      return res.status(404).json({ error: 'Class not found' });
+      return res.status(400).json({ error: 'Staff ID and Class ID are required' });
     }
 
     const assignment = await prisma.classAssignment.create({
@@ -185,7 +249,7 @@ router.post('/assign-classes', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req
         classId,
         sectionId: sectionId || null,
         subjectId: subjectId || null,
-        isClassTeacher: Boolean(isClassTeacher)
+        isClassTeacher: isClassTeacher || false
       },
       include: {
         class: true,
@@ -194,60 +258,10 @@ router.post('/assign-classes', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req
       }
     });
 
-    res.status(201).json({ message: 'Class assigned successfully', assignment });
+    res.status(201).json({ message: 'Class assignment created successfully', assignment });
   } catch (error) {
-    console.error('Class assignment error:', error);
+    console.error('Assign class error:', error);
     res.status(500).json({ error: 'Failed to assign class' });
-  }
-});
-
-// GET /api/staff/:id/classes
-// Get all class assignments for a staff member
-router.get('/:id/classes', async (req, res) => {
-  try {
-    const prisma = req.prisma;
-    const schoolId = req.user.schoolId;
-
-    const assignments = await prisma.classAssignment.findMany({
-      where: {
-        schoolId,
-        staffId: req.params.id
-      },
-      include: {
-        class: true,
-        section: true,
-        subject: true
-      }
-    });
-
-    res.json(assignments);
-  } catch (error) {
-    console.error('Fetch staff assignments error:', error);
-    res.status(500).json({ error: 'Failed to fetch assignments' });
-  }
-});
-
-// DELETE /api/staff/assignments/:assignmentId
-router.delete('/assignments/:assignmentId', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
-  try {
-    const prisma = req.prisma;
-    const schoolId = req.user.schoolId;
-
-    const existing = await prisma.classAssignment.findFirst({
-      where: { id: req.params.assignmentId, schoolId }
-    });
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Assignment not found' });
-    }
-
-    await prisma.classAssignment.delete({
-      where: { id: req.params.assignmentId }
-    });
-    res.json({ message: 'Assignment removed successfully' });
-  } catch (error) {
-    console.error('Delete assignment error:', error);
-    res.status(500).json({ error: 'Failed to remove assignment' });
   }
 });
 

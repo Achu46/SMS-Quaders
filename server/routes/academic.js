@@ -34,7 +34,8 @@ router.get('/setup-status', async (req, res) => {
     const isMinimallyComplete = counts.academicYears > 0 && counts.classes > 0;
 
     res.json({
-      setupCompleted: school.setupCompleted,
+      setupCompleted: Boolean(school.academicSetupCompleted || school.setupCompleted),
+      academicSetupCompleted: Boolean(school.academicSetupCompleted || school.setupCompleted),
       isMinimallyComplete,
       counts,
       school: {
@@ -466,7 +467,7 @@ router.post('/complete-setup', async (req, res) => {
 
     const updated = await prisma.school.update({
       where: { id: schoolId },
-      data: { setupCompleted: true }
+      data: { setupCompleted: true, academicSetupCompleted: true }
     });
 
     res.json({

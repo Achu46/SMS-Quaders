@@ -16,19 +16,28 @@ const authenticateToken = async (req, res, next) => {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
     
-    // Attach user payload to request
+    // Attach decoded user payload to request
     req.user = decodedUser;
 
-    // Attach fresh permissions and school status if needed
-    if (decodedUser.id && !req.user.permissions) {
+    // Attach fresh permissions, role and school status from database
+    if (decodedUser.id) {
       try {
         const user = await prisma.user.findUnique({
           where: { id: decodedUser.id },
-          include: { school: true, staffRole: true }
+          include: { 
+            school: true, 
+            customRole: {
+              include: { permissions: true }
+            },
+            staffRole: true 
+          }
         });
         if (user) {
           req.user.schoolStatus = user.school ? user.school.status : null;
-          req.user.setupCompleted = user.school ? user.school.setupCompleted : false;
+          req.user.setupCompleted = user.school ? (user.school.academicSetupCompleted || user.school.setupCompleted) : false;
+          req.user.academicSetupCompleted = req.user.setupCompleted;
+          req.user.customRole = user.customRole;
+          req.user.roleId = user.roleId;
           req.user.staffRole = user.staffRole;
         }
       } catch (dbErr) {
@@ -64,6 +73,17 @@ const requireTenantAccess = (req, res, next) => {
     return res.status(403).json({ error: 'Tenant access denied', code: 'TENANT_ACCESS_DENIED' });
   }
 
+  // Reject tenant calls if school is PENDING or SUSPENDED
+  if (req.user.schoolStatus && req.user.schoolStatus !== 'ACTIVE') {
+    return res.status(403).json({
+      error: req.user.schoolStatus === 'PENDING'
+        ? 'Your school account is pending approval by the platform administrator.'
+        : 'Your school account has been suspended. Please contact support.',
+      code: 'SCHOOL_NOT_ACTIVE',
+      status: req.user.schoolStatus
+    });
+  }
+
   // Bind verified schoolId to request for all downstream queries
   req.schoolId = userSchoolId;
   next();
@@ -88,11 +108,11 @@ const requireRole = (roles) => {
 
 // Middleware to enforce Active School Status (blocks access if school is PENDING or SUSPENDED)
 const requireActiveSchool = async (req, res, next) => {
-  if (req.user.role === 'SUPER_ADMIN') {
+  if (req.user && req.user.role === 'SUPER_ADMIN') {
     return next();
   }
 
-  const schoolId = req.user.schoolId;
+  const schoolId = req.user ? req.user.schoolId : null;
   if (!schoolId) {
     return res.status(403).json({ 
       error: 'No school associated with this user.',
@@ -103,7 +123,7 @@ const requireActiveSchool = async (req, res, next) => {
   try {
     const school = await prisma.school.findUnique({
       where: { id: schoolId },
-      select: { status: true, setupCompleted: true }
+      select: { status: true, setupCompleted: true, academicSetupCompleted: true }
     });
 
     if (!school) {
@@ -133,18 +153,20 @@ const requireActiveSchool = async (req, res, next) => {
 
 // Middleware to enforce Academic Setup completion
 const requireAcademicSetup = async (req, res, next) => {
-  if (req.user.role === 'SUPER_ADMIN') {
+  if (req.user && req.user.role === 'SUPER_ADMIN') {
     return next();
   }
 
   try {
     const school = req.school || await prisma.school.findUnique({
       where: { id: req.user.schoolId },
-      select: { setupCompleted: true }
+      select: { setupCompleted: true, academicSetupCompleted: true }
     });
 
-    if (!school || !school.setupCompleted) {
-      return res.status(409).json({
+    const isComplete = school && (school.academicSetupCompleted === true || school.setupCompleted === true);
+
+    if (!isComplete) {
+      return res.status(403).json({
         error: 'Academic Setup must be completed before performing this operation.',
         code: 'SETUP_NOT_COMPLETED'
       });
@@ -158,27 +180,42 @@ const requireAcademicSetup = async (req, res, next) => {
 };
 
 // Helper to check granular module permissions
-const hasPermission = (staffRole, moduleKey, action = 'VIEW') => {
-  if (!staffRole || !staffRole.permissions) return false;
-  const perms = staffRole.permissions;
+const hasPermission = (customRoleOrStaffRole, moduleKey, action = 'VIEW') => {
+  if (!customRoleOrStaffRole) return false;
   const actionNormalized = action.toUpperCase();
   const moduleNormalized = moduleKey.toLowerCase().replace(/\s+/g, '-');
 
-  // Case 1: Object map { "attendance": { "read": true, "create": true, ... } }
-  if (typeof perms === 'object' && !Array.isArray(perms)) {
-    const modObj = perms[moduleKey] || perms[moduleNormalized] || perms[moduleKey.toLowerCase()];
-    if (!modObj) return false;
-    
-    if (actionNormalized === 'VIEW' || actionNormalized === 'READ') {
-      return modObj.read === true || modObj.view === true;
+  // Case 1: New RolePermission[] relation array
+  if (customRoleOrStaffRole.permissions && Array.isArray(customRoleOrStaffRole.permissions)) {
+    const perm = customRoleOrStaffRole.permissions.find(
+      p => p && typeof p === 'object' && p.moduleKey && p.moduleKey.toLowerCase().replace(/\s+/g, '-') === moduleNormalized
+    );
+    if (perm) {
+      if (actionNormalized === 'VIEW' || actionNormalized === 'READ') return perm.canRead === true;
+      if (actionNormalized === 'CREATE') return perm.canCreate === true;
+      if (actionNormalized === 'EDIT' || actionNormalized === 'UPDATE') return perm.canUpdate === true;
+      if (actionNormalized === 'DELETE') return perm.canDelete === true;
     }
-    if (actionNormalized === 'CREATE') return modObj.create === true;
-    if (actionNormalized === 'EDIT' || actionNormalized === 'UPDATE') return modObj.edit === true || modObj.update === true;
-    if (actionNormalized === 'DELETE') return modObj.delete === true;
   }
 
-  // Case 2: Array of strings e.g. ["ATTENDANCE:VIEW", "ATTENDANCE:CREATE"] or ["attendance", "fees"]
+  // Case 2: Legacy object map { "attendance": { "read": true, "create": true, ... } }
+  const perms = customRoleOrStaffRole.permissions;
+  if (perms && typeof perms === 'object' && !Array.isArray(perms)) {
+    if (perms.ALL === true) return true;
+    const modObj = perms[moduleKey] || perms[moduleNormalized] || perms[moduleKey.toLowerCase()];
+    if (modObj) {
+      if (actionNormalized === 'VIEW' || actionNormalized === 'READ') {
+        return modObj.read === true || modObj.view === true;
+      }
+      if (actionNormalized === 'CREATE') return modObj.create === true;
+      if (actionNormalized === 'EDIT' || actionNormalized === 'UPDATE') return modObj.edit === true || modObj.update === true;
+      if (actionNormalized === 'DELETE') return modObj.delete === true;
+    }
+  }
+
+  // Case 3: Flat array of strings e.g. ["ATTENDANCE:VIEW", "ATTENDANCE:CREATE"]
   if (Array.isArray(perms)) {
+    if (perms.includes('ALL')) return true;
     const fullKey = `${moduleNormalized}:${actionNormalized}`;
     if (perms.includes(fullKey) || perms.includes(moduleNormalized) || perms.includes(moduleKey)) {
       return true;
@@ -191,23 +228,36 @@ const hasPermission = (staffRole, moduleKey, action = 'VIEW') => {
 // Middleware to enforce Module-Level Permissions
 const requirePermission = (moduleKey, action = 'VIEW') => {
   return async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
+    }
+
+    const userRole = (req.user.role || '').toUpperCase();
+
     // Admin and Super Admin have full access to all modules
-    if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
+    if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
       return next();
     }
 
-    if (req.user.role === 'STAFF') {
+    if (userRole === 'STAFF') {
       try {
         const user = await prisma.user.findUnique({
           where: { id: req.user.id },
-          include: { staffRole: true }
+          include: { 
+            customRole: {
+              include: { permissions: true }
+            },
+            staffRole: true 
+          }
         });
 
-        if (!user || !user.staffRole) {
+        const activeRole = user ? (user.customRole || user.staffRole) : null;
+
+        if (!activeRole) {
           return res.status(403).json({ error: 'No staff role assigned to this account', code: 'NO_STAFF_ROLE' });
         }
 
-        if (!hasPermission(user.staffRole, moduleKey, action)) {
+        if (!hasPermission(activeRole, moduleKey, action)) {
           return res.status(403).json({ 
             error: `Access denied: missing ${action} permission for module ${moduleKey}`,
             code: 'PERMISSION_DENIED',
@@ -229,6 +279,7 @@ const requirePermission = (moduleKey, action = 'VIEW') => {
 
 // Middleware to enforce class/section scoping for teachers
 const requireClassAccess = async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   if (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN') {
     return next();
   }

@@ -8,8 +8,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      'firebase/app': path.resolve(__dirname, 'src/firebase/mockFirebaseApp.js'),
-      'firebase/firestore': path.resolve(__dirname, 'src/firebase/mockFirestore.js'),
+      'firebase/app': path.resolve(import.meta.dirname, 'src/firebase/mockFirebaseApp.js'),
+      'firebase/firestore': path.resolve(import.meta.dirname, 'src/firebase/mockFirestore.js'),
     }
   },
   server: {

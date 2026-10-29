@@ -4,7 +4,7 @@ const { authenticateToken, requireTenantAccess, requireModulePermission } = requ
 
 // POST /api/schools/:schoolId/attendance
 // Save/Mark Attendance for a class session
-router.post('/', authenticateToken, requireTenantAccess, requireModulePermission('attendance'), async (req, res) => {
+router.post('/', authenticateToken, requireTenantAccess, requireModulePermission('attendance', 'CREATE'), async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { classId, date, session, entries } = req.body;

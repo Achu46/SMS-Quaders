@@ -5,6 +5,61 @@ const { authenticateToken, requireActiveSchool, requireAcademicSetup, requirePer
 // All student routes require active school + completed academic setup
 router.use(authenticateToken, requireActiveSchool, requireAcademicSetup);
 
+// GET /api/students/my-children
+// Scoped strictly for Parents: returns only the parent's linked children with common modules
+router.get('/my-children', async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const schoolId = req.user.schoolId;
+    const userId = req.user.id;
+
+    // Find parent record linked to this user
+    const parent = await prisma.parent.findFirst({
+      where: { schoolId, userId },
+      include: {
+        students: {
+          include: {
+            student: {
+              include: {
+                class: true,
+                section: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!parent) {
+      return res.json([]);
+    }
+
+    const commonModules = [
+      'Dashboard',
+      'Attendance',
+      'Homework',
+      'Assignments',
+      'Calendar',
+      'Exams',
+      'Noticeboard',
+      'Leaves',
+      'Canteen',
+      'Fees'
+    ];
+
+    const children = parent.students.map(ps => ({
+      ...ps.student,
+      relation: parent.relation,
+      commonModules
+    }));
+
+    res.json(children);
+  } catch (error) {
+    console.error('Fetch my-children error:', error);
+    res.status(500).json({ error: 'Failed to fetch linked children' });
+  }
+});
+
 // GET /api/students
 // List students with optional class / section filter
 router.get('/', requirePermission('students', 'VIEW'), async (req, res) => {
@@ -193,6 +248,72 @@ router.post('/bulk-import', requirePermission('students', 'CREATE'), async (req,
   } catch (error) {
     console.error('Bulk import error:', error);
     res.status(500).json({ error: 'Failed to process bulk import' });
+  }
+});
+
+// PUT /api/students/:id
+// Update student profile
+router.put('/:id', requirePermission('students', 'EDIT'), async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const schoolId = req.user.schoolId;
+    const studentId = req.params.id;
+
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, schoolId }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const { firstName, lastName, rollNo, dob, gender, classId, sectionId, status } = req.body;
+
+    const updated = await prisma.student.update({
+      where: { id: studentId },
+      data: {
+        ...(firstName ? { firstName: firstName.trim() } : {}),
+        ...(lastName !== undefined ? { lastName: lastName.trim() } : {}),
+        ...(rollNo !== undefined ? { rollNo: rollNo ? rollNo.trim() : null } : {}),
+        ...(dob !== undefined ? { dob: dob ? new Date(dob) : null } : {}),
+        ...(gender !== undefined ? { gender } : {}),
+        ...(classId ? { classId } : {}),
+        ...(sectionId !== undefined ? { sectionId } : {}),
+        ...(status ? { status } : {})
+      }
+    });
+
+    res.json({ message: 'Student updated successfully', student: updated });
+  } catch (error) {
+    console.error('Update student error:', error);
+    res.status(500).json({ error: 'Failed to update student' });
+  }
+});
+
+// DELETE /api/students/:id
+// Delete a student
+router.delete('/:id', requirePermission('students', 'DELETE'), async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const schoolId = req.user.schoolId;
+    const studentId = req.params.id;
+
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, schoolId }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    await prisma.student.delete({
+      where: { id: studentId }
+    });
+
+    res.json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    console.error('Delete student error:', error);
+    res.status(500).json({ error: 'Failed to delete student' });
   }
 });
 

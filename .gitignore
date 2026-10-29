@@ -65,3 +65,8 @@ docs/
 /README.md
 /package.json
 /package-lock.json
+
+# Local Environment and Database Data
+client/env
+server/env
+server/data/

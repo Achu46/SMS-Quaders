@@ -1803,12 +1803,14 @@ export default function StudentManagement() {
                               <Trash size={18} />
                             </button>
                           )}
-                           <button 
-                             onClick={() => openAssignModal(student)}
-                             className="px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors"
-                           >
-                             {student.classId ? 'Change Class' : 'Assign'}
-                           </button>
+                           {hasEditPermission && (
+                             <button 
+                               onClick={() => openAssignModal(student)}
+                               className="px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg transition-colors"
+                             >
+                               {student.classId ? 'Change Class' : 'Assign'}
+                             </button>
+                           )}
                         </div>
                       </td>
                     </tr>

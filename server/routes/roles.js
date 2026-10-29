@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireActiveSchool, requireRole } = require('../middleware');
+const { z } = require('zod');
+const { authenticateToken, requireActiveSchool, requireAcademicSetup, requireRole } = require('../middleware');
 
 const MODULE_CATALOG = [
   { id: 'attendance', label: 'Attendance Management', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
@@ -26,8 +27,29 @@ const MODULE_CATALOG = [
   { id: 'form-builder', label: 'Custom Forms', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] }
 ];
 
-// All roles endpoints are protected
-router.use(authenticateToken, requireActiveSchool, requireRole(['ADMIN', 'SUPER_ADMIN']));
+// Zod Schemas
+const permissionSchema = z.object({
+  moduleKey: z.string().min(1, 'moduleKey is required'),
+  canCreate: z.boolean().default(false),
+  canRead: z.boolean().default(false),
+  canUpdate: z.boolean().default(false),
+  canDelete: z.boolean().default(false)
+});
+
+const createRoleSchema = z.object({
+  name: z.string().min(1, 'Role name is required').trim(),
+  description: z.string().optional().nullable(),
+  permissions: z.array(permissionSchema).min(1, 'Role must have at least one module permission')
+});
+
+const updateRoleSchema = z.object({
+  name: z.string().min(1, 'Role name is required').trim().optional(),
+  description: z.string().optional().nullable(),
+  permissions: z.array(permissionSchema).min(1, 'Role must have at least one module permission').optional()
+});
+
+// All roles endpoints are protected and require active school + completed academic setup
+router.use(authenticateToken, requireActiveSchool, requireAcademicSetup, requireRole(['ADMIN', 'SUPER_ADMIN']));
 
 // GET /api/roles/modules
 // Catalog of all available module keys and their actions
@@ -49,52 +71,26 @@ router.get('/modules', async (req, res) => {
       }
     }
   } catch (err) {
-    // Fallback to static catalog if table not yet migrated
+    // Fallback to static catalog
   }
   res.json(MODULE_CATALOG);
 });
 
 // GET /api/roles
-// List all roles for this school
+// List all custom roles for this college/school (ZERO default roles seeded)
 router.get('/', async (req, res) => {
   try {
     const prisma = req.prisma;
-    const schoolId = req.user.schoolId;
+    const collegeId = req.user.schoolId;
 
-    let roles = await prisma.staffRole.findMany({
-      where: { schoolId },
+    const roles = await prisma.role.findMany({
+      where: { collegeId },
       include: {
+        permissions: true,
         _count: { select: { users: true } }
       },
       orderBy: { createdAt: 'asc' }
     });
-
-    // Auto-seed default roles if school has none
-    if (roles.length === 0) {
-      const defaultRoles = [
-        { name: 'Principal', isSystemRole: true, permissions: { ALL: true } },
-        { name: 'Vice Principal', isSystemRole: false, permissions: { attendance: { read: true, create: true, edit: true }, exams: { read: true, create: true } } },
-        { name: 'Class Teacher', isSystemRole: true, permissions: { attendance: { read: true, create: true, edit: true }, homework: { read: true, create: true, edit: true } } },
-        { name: 'Subject Teacher', isSystemRole: false, permissions: { attendance: { read: true, create: true }, homework: { read: true, create: true } } },
-        { name: 'Accountant', isSystemRole: false, permissions: { fees: { read: true, create: true, edit: true } } }
-      ];
-
-      for (const r of defaultRoles) {
-        await prisma.staffRole.create({
-          data: {
-            schoolId,
-            name: r.name,
-            isSystemRole: r.isSystemRole,
-            permissions: r.permissions
-          }
-        });
-      }
-
-      roles = await prisma.staffRole.findMany({
-        where: { schoolId },
-        include: { _count: { select: { users: true } } }
-      });
-    }
 
     res.json(roles);
   } catch (error) {
@@ -104,94 +100,189 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/roles
-// Create a new role
+// Create a new role with module permissions scoped by collegeId
 router.post('/', async (req, res) => {
   try {
     const prisma = req.prisma;
-    const { name, permissions } = req.body;
+    const collegeId = req.user.schoolId;
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Role name is required' });
+    const parsed = createRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues ? parsed.error.issues.map(e => e.message).join(', ') : 'Validation error';
+      return res.status(400).json({ error: msg });
     }
 
-    const existing = await prisma.staffRole.findUnique({
+    const { name, description, permissions } = parsed.data;
+
+    // Verify at least one module has at least one active CRUD flag
+    const hasActivePermission = permissions.some(
+      p => p.canCreate || p.canRead || p.canUpdate || p.canDelete
+    );
+    if (!hasActivePermission) {
+      return res.status(400).json({ error: 'A role must have at least one active module permission (Create, Read, Update, or Delete).' });
+    }
+
+    // Enforce uniqueness per collegeId
+    const existing = await prisma.role.findUnique({
       where: {
-        schoolId_name: {
-          schoolId: req.user.schoolId,
-          name: name.trim()
+        collegeId_name: {
+          collegeId,
+          name
         }
       }
     });
 
     if (existing) {
-      return res.status(400).json({ error: 'A role with this name already exists' });
+      return res.status(400).json({ error: 'A role with this name already exists for this college/school.' });
     }
 
-    const role = await prisma.staffRole.create({
-      data: {
-        schoolId: req.user.schoolId,
-        name: name.trim(),
-        isSystemRole: false,
-        permissions: permissions || {}
+    // Create Role and its RolePermission entries in a transaction
+    const newRole = await prisma.$transaction(async (tx) => {
+      const createdRole = await tx.role.create({
+        data: {
+          collegeId,
+          name,
+          description: description || null
+        }
+      });
+
+      for (const p of permissions) {
+        await tx.rolePermission.create({
+          data: {
+            roleId: createdRole.id,
+            moduleKey: p.moduleKey.trim(),
+            canCreate: p.canCreate || false,
+            canRead: p.canRead || false,
+            canUpdate: p.canUpdate || false,
+            canDelete: p.canDelete || false
+          }
+        });
       }
+
+      return tx.role.findUnique({
+        where: { id: createdRole.id },
+        include: { permissions: true, _count: { select: { users: true } } }
+      });
     });
 
-    res.status(201).json(role);
+    res.status(201).json(newRole);
   } catch (error) {
     console.error('Create role error:', error);
     res.status(500).json({ error: 'Failed to create role' });
   }
 });
 
-// PUT /api/roles/:roleId/permissions
-// Update the permission matrix for a role
-router.put('/:roleId/permissions', async (req, res) => {
+// PUT /api/roles/:roleId
+// Update an existing role's name, description, and module permissions
+router.put('/:roleId', async (req, res) => {
   try {
     const prisma = req.prisma;
-    const { permissions, name } = req.body;
+    const collegeId = req.user.schoolId;
+    const roleId = req.params.roleId;
 
-    const role = await prisma.staffRole.findFirst({
-      where: { id: req.params.roleId, schoolId: req.user.schoolId }
+    const parsed = updateRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues ? parsed.error.issues.map(e => e.message).join(', ') : 'Validation error';
+      return res.status(400).json({ error: msg });
+    }
+
+    const { name, description, permissions } = parsed.data;
+
+    const existingRole = await prisma.role.findFirst({
+      where: { id: roleId, collegeId }
     });
 
-    if (!role) {
+    if (!existingRole) {
       return res.status(404).json({ error: 'Role not found' });
     }
 
-    const updated = await prisma.staffRole.update({
-      where: { id: req.params.roleId },
-      data: {
-        ...(name ? { name: name.trim() } : {}),
-        ...(permissions !== undefined ? { permissions } : {})
+    // If name is changing, check uniqueness
+    if (name && name !== existingRole.name) {
+      const nameTaken = await prisma.role.findUnique({
+        where: { collegeId_name: { collegeId, name } }
+      });
+      if (nameTaken) {
+        return res.status(400).json({ error: 'A role with this name already exists' });
       }
+    }
+
+    // If permissions provided, ensure at least one active flag
+    if (permissions) {
+      const hasActive = permissions.some(p => p.canCreate || p.canRead || p.canUpdate || p.canDelete);
+      if (!hasActive) {
+        return res.status(400).json({ error: 'A role must have at least one active module permission.' });
+      }
+    }
+
+    const updatedRole = await prisma.$transaction(async (tx) => {
+      await tx.role.update({
+        where: { id: roleId },
+        data: {
+          ...(name ? { name } : {}),
+          ...(description !== undefined ? { description } : {})
+        }
+      });
+
+      if (permissions && Array.isArray(permissions)) {
+        // Delete old permissions and insert fresh
+        await tx.rolePermission.deleteMany({
+          where: { roleId }
+        });
+
+        for (const p of permissions) {
+          await tx.rolePermission.create({
+            data: {
+              roleId,
+              moduleKey: p.moduleKey.trim(),
+              canCreate: p.canCreate || false,
+              canRead: p.canRead || false,
+              canUpdate: p.canUpdate || false,
+              canDelete: p.canDelete || false
+            }
+          });
+        }
+      }
+
+      return tx.role.findUnique({
+        where: { id: roleId },
+        include: { permissions: true, _count: { select: { users: true } } }
+      });
     });
 
-    res.json({ message: 'Permissions updated successfully', role: updated });
+    res.json({ message: 'Role updated successfully', role: updatedRole });
   } catch (error) {
-    console.error('Update permissions error:', error);
-    res.status(500).json({ error: 'Failed to update role permissions' });
+    console.error('Update role error:', error);
+    res.status(500).json({ error: 'Failed to update role' });
   }
 });
 
 // DELETE /api/roles/:roleId
+// Delete a role - BLOCKED if staff members are currently assigned
 router.delete('/:roleId', async (req, res) => {
   try {
     const prisma = req.prisma;
+    const collegeId = req.user.schoolId;
+    const roleId = req.params.roleId;
 
-    const role = await prisma.staffRole.findFirst({
-      where: { id: req.params.roleId, schoolId: req.user.schoolId }
+    const role = await prisma.role.findFirst({
+      where: { id: roleId, collegeId },
+      include: {
+        _count: { select: { users: true } }
+      }
     });
 
     if (!role) {
       return res.status(404).json({ error: 'Role not found' });
     }
 
-    if (role.isSystemRole) {
-      return res.status(400).json({ error: 'System roles cannot be deleted' });
+    if (role._count.users > 0) {
+      return res.status(400).json({
+        error: `Cannot delete role '${role.name}' because it is assigned to ${role._count.users} staff member(s). Reassign them first.`
+      });
     }
 
-    await prisma.staffRole.delete({
-      where: { id: req.params.roleId }
+    await prisma.role.delete({
+      where: { id: roleId }
     });
 
     res.json({ message: 'Role deleted successfully' });

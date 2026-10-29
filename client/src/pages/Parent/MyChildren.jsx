@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase/config';
@@ -90,6 +91,38 @@ export default function MyChildren() {
       unsub();
       classesUnsub();
     };
+  }, [schoolId]);
+
+  // 1.1 Fetch linked children from PostgreSQL REST API (/api/students/my-children)
+  useEffect(() => {
+    const fetchApiLinkedChildren = async () => {
+      try {
+        const data = await api.get('/students/my-children');
+        if (Array.isArray(data) && data.length > 0) {
+          setEnrolledStudents(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const freshChildren = data
+              .filter(c => !existingIds.has(c.id))
+              .map(c => ({
+                id: c.id,
+                firstName: c.name ? c.name.split(' ')[0] : (c.firstName || 'Student'),
+                lastName: c.name ? c.name.split(' ').slice(1).join(' ') : (c.lastName || ''),
+                admissionNumber: c.admissionNumber || c.admissionNo || 'N/A',
+                classId: c.classId,
+                className: c.class?.name ? `${c.class.name}${c.section?.name ? ` - ${c.section.name}` : ''}` : undefined,
+                gender: c.gender || 'Male',
+                relationship: c.relationship || 'Child',
+                status: c.status || 'Active'
+              }));
+            return [...prev, ...freshChildren];
+          });
+        }
+      } catch (err) {
+        console.warn("Could not fetch /students/my-children from backend API:", err.message);
+      }
+    };
+
+    fetchApiLinkedChildren();
   }, [schoolId]);
 
   // 2. Real-time listener for User Profile & Linked Students / Manual Siblings

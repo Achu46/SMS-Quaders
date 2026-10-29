@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequireActiveSchool from './components/RequireActiveSchool';
+import RequireAcademicSetup from './components/RequireAcademicSetup';
 
 // Loading Fallback (Sleek futuristic spinner)
 const GlobalLoader = () => (
@@ -215,9 +216,9 @@ function App() {
               <Route path="form-builder" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="form-builder"><FormBuilder /></ProtectedRoute>} />
               <Route path="subjects" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="subjects"><SubjectManagement /></ProtectedRoute>} />
               <Route path="classes" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="classes"><ClassManagement /></ProtectedRoute>} />
-              <Route path="students" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="students"><StudentManagement /></ProtectedRoute>} />
+              <Route path="students" element={<RequireAcademicSetup><ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="students"><StudentManagement /></ProtectedRoute></RequireAcademicSetup>} />
               <Route path="attendance" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="attendance"><AdminAttendance /></ProtectedRoute>} />
-              <Route path="staff" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="staff"><StaffAssignment /></ProtectedRoute>} />
+              <Route path="staff" element={<RequireAcademicSetup><ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="staff"><StaffAssignment /></ProtectedRoute></RequireAcademicSetup>} />
               <Route path="links" element={<ProtectedRoute allowedRoles={['admin']}><LinkGenerator /></ProtectedRoute>} />
               <Route path="fees" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="fees"><FeeManagement /></ProtectedRoute>} />
               <Route path="timetables" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="timetables"><TimetableManagement /></ProtectedRoute>} />
@@ -234,7 +235,7 @@ function App() {
               <Route path="inventory/audit-logs" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="inventory"><InventoryAuditLogs /></ProtectedRoute>} />
               <Route path="hr-payroll" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="hr-payroll"><HRPayrollManagement /></ProtectedRoute>} />
               <Route path="reports" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="reports"><ReportsAnalytics /></ProtectedRoute>} />
-              <Route path="roles" element={<ProtectedRoute allowedRoles={['admin']}><RolesPermissions /></ProtectedRoute>} />
+              <Route path="roles" element={<RequireAcademicSetup><ProtectedRoute allowedRoles={['admin']}><RolesPermissions /></ProtectedRoute></RequireAcademicSetup>} />
               <Route path="homework" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="homework"><AdminHomework /></ProtectedRoute>} />
               <Route path="custom/:moduleId" element={<CustomModuleView />} />
               <Route path="leaves" element={<ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']} moduleKey="leaves"><AdminLeaves /></ProtectedRoute>} />

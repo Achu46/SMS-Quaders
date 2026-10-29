@@ -7,13 +7,15 @@ import {
   LuKey as Key, LuMenu as Menu, LuX as X, LuBuilding2 as Building2, LuCheck as CheckSquare, LuHouse as Home, 
   LuPackage as PackageIcon, LuBriefcase as Briefcase, LuChartBar as BarChart2, LuHeartPulse as HeartPulse, 
   LuCircleAlert as AlertCircle, LuFiles as Files, LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, 
-  LuShield as Shield, LuLayoutGrid as LayoutGrid, LuMessageSquare as MessageSquare, LuCoffee as Coffee 
+  LuShield as Shield, LuLayoutGrid as LayoutGrid, LuMessageSquare as MessageSquare, LuCoffee as Coffee,
+  LuLock as Lock 
 } from 'react-icons/lu';
 import { logoutUser } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { getSchool, subscribeToSubCollection } from '../firebase/firestore';
 import TopNavbar from '../components/TopNavbar';
+import toast from 'react-hot-toast';
 import useSchoolBranding from '../hooks/useSchoolBranding';
 import { useNotifications } from '../context/NotificationContext';
 
@@ -169,26 +171,43 @@ export default function AdminDashboard() {
     );
   }
 
-  const permittedModules = schoolData.permittedModules || [];
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin' || userProfile?.role?.toLowerCase() === 'superadmin' || userProfile?.role?.toLowerCase() === 'super_admin';
+  const isSetupCompleted = Boolean(
+    userProfile?.academicSetupCompleted ?? 
+    userProfile?.setupCompleted ?? 
+    schoolData?.academicSetupCompleted ?? 
+    schoolData?.setupCompleted
+  );
+  const isSetupLocked = isAdmin && !isSetupCompleted;
+
+  const permittedModules = schoolData?.permittedModules || [];
   const combinedNavItems = [...allNavItems, ...customNavItems];
   
   let navItems = combinedNavItems.filter(item => {
+    // For Staff members: strictly enforce role-based permissions
+    if (permissions !== 'ALL') {
+      const adminOnlyNames = ['Environment Setup', 'Roles & Permissions', 'Registration Links', 'API Integrations', 'Billing & Plan', 'Custom Modules'];
+      if (adminOnlyNames.includes(item.name)) return false;
+      const adminOnlyKeys = ['setup', 'roles', 'links', 'api', 'billing', 'form-builder'];
+      if (item.moduleKey && adminOnlyKeys.includes(item.moduleKey)) return false;
+      
+      if (!item.moduleKey && item.name === 'Dashboard') return true;
+      if (item.moduleKey) return canRead(item.moduleKey);
+      return false;
+    }
+
+    // For Admin / SuperAdmin
     if (!item.moduleKey && item.name === 'Dashboard') return true;
     if (!item.moduleKey && item.name === 'Environment Setup') return true;
     if (item.isCustom) return true;
-    if (item.moduleKey === 'inventory' && schoolData.schoolType === 'College') return true;
+    if (item.moduleKey === 'inventory' && schoolData?.schoolType === 'College') return true;
     
     const coreKeys = ['classes', 'students', 'staff', 'links', 'roles', 'settings', 'form-builder', 'api', 'homework', 'leaves', 'leads', 'reports', 'canteen', 'chats'];
     if (!coreKeys.includes(item.moduleKey) && !permittedModules.includes(item.moduleKey)) {
        return false;
     }
     
-    if (permissions === 'ALL') {
-       return true;
-    } else {
-       if (item.moduleKey === 'roles') return false;
-       return canRead(item.moduleKey);
-    }
+    return true;
   });
 
   if (sidebarOrder.length > 0) {
@@ -267,12 +286,23 @@ export default function AdminDashboard() {
               }
             };
 
+            const isGatedModule = ['roles', 'staff', 'students'].includes(item.moduleKey);
+            const isItemLocked = isSetupLocked && isGatedModule;
+
             return (
               <div key={item.name} className="space-y-1">
                 <NavLink
-                  to={item.path}
+                  to={isItemLocked ? '/admin/setup' : item.path}
                   end={item.exact}
-                  onClick={hasSubItems ? toggleMenu : undefined}
+                  onClick={(e) => {
+                    if (isItemLocked) {
+                      e.preventDefault();
+                      toast.error(`Complete Academic Setup first to unlock ${item.name}.`);
+                      navigate('/admin/setup');
+                      return;
+                    }
+                    if (hasSubItems) toggleMenu();
+                  }}
                   className={({ isActive }) => {
                     const childActive = hasSubItems && item.subItems.some(sub => location.pathname === sub.path);
                     const active = isActive || childActive;
@@ -300,6 +330,11 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
+                          {isItemLocked && (
+                            <span className="p-1 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20" title="Locked until Academic Setup is completed">
+                              <Lock size={12} />
+                            </span>
+                          )}
                           {unreadCounts[item.moduleKey] > 0 && (
                             <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full select-none animate-pulse">
                               {unreadCounts[item.moduleKey]}

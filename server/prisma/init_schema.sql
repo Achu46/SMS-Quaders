@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS "School" (
     "name" TEXT NOT NULL,
     "status" "SchoolStatus" NOT NULL DEFAULT 'PENDING',
     "setupCompleted" BOOLEAN NOT NULL DEFAULT false,
+    "academicSetupCompleted" BOOLEAN NOT NULL DEFAULT false,
     "address" TEXT,
     "board" TEXT,
     "phone" TEXT,
@@ -84,6 +85,36 @@ CREATE TABLE IF NOT EXISTS "School" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- Role (Multi-tenant Custom Roles scoped by collegeId)
+CREATE TABLE IF NOT EXISTS "roles" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "collegeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "roles_collegeId_fkey" FOREIGN KEY ("collegeId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "roles_collegeId_name_key" ON "roles"("collegeId", "name");
+CREATE INDEX IF NOT EXISTS "roles_collegeId_idx" ON "roles"("collegeId");
+
+-- RolePermission (Granular CRUD permissions per module)
+CREATE TABLE IF NOT EXISTS "role_permissions" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "roleId" TEXT NOT NULL,
+    "moduleKey" TEXT NOT NULL,
+    "canCreate" BOOLEAN NOT NULL DEFAULT false,
+    "canRead" BOOLEAN NOT NULL DEFAULT false,
+    "canUpdate" BOOLEAN NOT NULL DEFAULT false,
+    "canDelete" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "role_permissions_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "role_permissions_roleId_moduleKey_key" ON "role_permissions"("roleId", "moduleKey");
+CREATE INDEX IF NOT EXISTS "role_permissions_roleId_idx" ON "role_permissions"("roleId");
 
 -- StaffRole (Custom RBAC Roles)
 CREATE TABLE IF NOT EXISTS "StaffRole" (
@@ -107,6 +138,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     "employeeId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "role" "Role" NOT NULL DEFAULT 'PARENT',
+    "roleId" TEXT,
     "staffRoleId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -172,7 +204,7 @@ CREATE TABLE IF NOT EXISTS "ClassAssignment" (
 CREATE TABLE IF NOT EXISTS "Parent" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "schoolId" TEXT NOT NULL,
-    "userId" TEXT UNIQUE,
+    "userId" TEXT,
     "name" TEXT NOT NULL,
     "email" TEXT,
     "phone" TEXT,
@@ -517,7 +549,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-    ALTER TABLE "Student" ADD CONSTRAINT "Student_schoolId_admissionNo_key" UNIQUE ("schoolId", "admissionNo");
+    -- ALTER TABLE "Student" ADD CONSTRAINT "Student_schoolId_admissionNo_key" UNIQUE ("schoolId", "admissionNo");
 EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN

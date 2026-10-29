@@ -18,48 +18,87 @@ enum SchoolStatus {
 
 // Multi-tenant core
 model School {
-  id               String          @id @default(uuid())
-  name             String
-  status           SchoolStatus    @default(PENDING)
-  setupCompleted   Boolean         @default(false)
-  address          String?
-  board            String?         // e.g. "CBSE", "ICSE", "State Board", "Matric"
-  phone            String?
-  logoUrl          String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                      String          @id @default(uuid())
+  name                    String
+  status                  SchoolStatus    @default(PENDING)
+  setupCompleted          Boolean         @default(false)
+  academicSetupCompleted  Boolean         @default(false)
+  address                 String?
+  board                   String?         // e.g. "CBSE", "ICSE", "State Board", "Matric"
+  phone                   String?
+  logoUrl                 String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
-  users            User[]
-  staffRoles       StaffRole[]
-  academicYears    AcademicYear[]
-  classes          Class[]
-  sections         Section[]
-  subjects         Subject[]
-  classAssignments ClassAssignment[]
-  students         Student[]
-  parents          Parent[]
-  attendances      Attendance[]
-  leaves           LeaveRequest[]
-  feeStructures    FeeStructure[]
-  invoices         Invoice[]
-  documents        SchoolDocument[]
-  aiUsages         AiUsage[]
-  aiAuditLogs      AiAuditLog[]
-  aiConversations  AiConversation[]
-  supportTickets   SupportTicket[]
-  modules          SchoolModule[]
-  examinations     Examination[]
-  assessments      Assessment[]
-  assessmentGrades AssessmentGrade[]
-  reportCardTemplates ReportCardTemplate[]
-  reportCards      ReportCard[]
+  users                   User[]
+  roles                   Role[]
+  staffRoles              StaffRole[]
+  academicYears           AcademicYear[]
+  classes                 Class[]
+  sections                Section[]
+  subjects                Subject[]
+  classAssignments        ClassAssignment[]
+  students                Student[]
+  parents                 Parent[]
+  attendances             Attendance[]
+  leaves                  LeaveRequest[]
+  feeStructures           FeeStructure[]
+  invoices                Invoice[]
+  documents               SchoolDocument[]
+  aiUsages                AiUsage[]
+  aiAuditLogs             AiAuditLog[]
+  aiConversations         AiConversation[]
+  supportTickets          SupportTicket[]
+  modules                 SchoolModule[]
+  examinations            Examination[]
+  assessments             Assessment[]
+  assessmentGrades        AssessmentGrade[]
+  reportCardTemplates     ReportCardTemplate[]
+  reportCards             ReportCard[]
 }
 
-enum Role {
+enum UserRole {
   SUPER_ADMIN
   ADMIN
   STAFF
   PARENT
+
+  @@map("Role")
+}
+
+model Role {
+  id           String           @id @default(uuid())
+  collegeId    String           // scoped by collegeId (tenant ID)
+  school       School           @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  permissions  RolePermission[]
+  users        User[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([collegeId, name])
+  @@index([collegeId])
+  @@map("roles")
+}
+
+model RolePermission {
+  id          String   @id @default(uuid())
+  roleId      String
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  moduleKey   String
+  canCreate   Boolean  @default(false)
+  canRead     Boolean  @default(false)
+  canUpdate   Boolean  @default(false)
+  canDelete   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([roleId, moduleKey])
+  @@index([roleId])
+  @@map("role_permissions")
 }
 
 model StaffRole {
@@ -69,7 +108,7 @@ model StaffRole {
   
   name         String   // e.g. "Principal", "Class Teacher", "Accountant"
   isSystemRole Boolean  @default(false)
-  permissions  Json     // Map/Array of permissions: { "attendance": { "read": true, "create": true, ... } } or ["attendance:VIEW", "attendance:CREATE"]
+  permissions  Json     // Map/Array of permissions: { "attendance": { "read": true, "create": true, ... } }
   
   users        User[]
 
@@ -91,8 +130,10 @@ model User {
   phone            String?
   employeeId       String?
   status           String            @default("ACTIVE") // ACTIVE, INACTIVE
-  role             Role              @default(PARENT)
+  role             UserRole          @default(PARENT)
   
+  roleId           String?
+  customRole       Role?             @relation(fields: [roleId], references: [id], onDelete: SetNull)
   staffRoleId      String?
   staffRole        StaffRole?        @relation(fields: [staffRoleId], references: [id], onDelete: SetNull)
   
@@ -107,6 +148,7 @@ model User {
   updatedAt        DateTime          @updatedAt
 
   @@index([schoolId])
+  @@index([roleId])
 }
 
 model AcademicYear {

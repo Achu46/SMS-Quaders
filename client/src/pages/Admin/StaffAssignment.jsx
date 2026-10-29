@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSubCollection, updateSubDocument, addSubDocument, subscribeToSubCollection, deleteSubDocument } from '../../firebase/firestore';
 import { doc, getDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
@@ -19,6 +21,8 @@ import { normalizeGender, isMale, isFemale } from '../../utils/genderUtils';
 
 export default function StaffAssignment() {
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
+  const [rolesList, setRolesList] = useState([]);
   const schoolId = userProfile?.schoolId;
   const { canCreate, canEdit, canDelete } = usePermissions();
   const hasCreatePermission = userProfile?.role?.toLowerCase() === 'admin' || userProfile?.role?.toLowerCase() === 'superadmin' || canCreate('staff');
@@ -48,11 +52,7 @@ export default function StaffAssignment() {
   const [uploading, setUploading] = useState(false);
 
   const [confirmDeleteState, setConfirmDeleteState] = useState({ isOpen: false, id: null, name: '' });
-  const [allRoles, setAllRoles] = useState([
-    'Correspondent', 'Principal', 'Vice Principal', 'Subject Wise Head',
-    'Class Incharge', 'Staffs', 'Administrative Officer', 'Finance Department',
-    'Library', 'Canteen', 'Transport', 'Janitors', 'Hostel', 'Inventory', 'Security'
-  ]);
+  const [allRoles, setAllRoles] = useState([]);
 
   // Export State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -102,7 +102,9 @@ export default function StaffAssignment() {
     residentialAddress: '',
     emergencyContact: '',
     fatherGuardianName: '',
-    role: 'Staffs',
+    roleId: '',
+    role: '',
+    roles: [],
     assignedClassId: '',
     staff_type: 'teaching',
     status: 'Active',
@@ -223,21 +225,20 @@ export default function StaffAssignment() {
 
     subjectsUnsub = subscribeToSubCollection(schoolId, 'subjects', setSubjects);
 
-    // Fetch custom roles list
-    const rolesRef = collection(db, `schools/${schoolId}/roles`);
-    getDocs(rolesRef).then(snapshot => {
-      const rolesData = [];
-      const docsList = snapshot?.docs || (Array.isArray(snapshot) ? snapshot : []);
-      (typeof snapshot?.forEach === 'function' ? snapshot : docsList).forEach(docSnap => {
-        rolesData.push(docSnap.id);
-      });
-      if (rolesData.length > 0) {
-        setAllRoles(prev => {
-          const combined = new Set([...prev, ...rolesData]);
-          return Array.from(combined);
-        });
+    // Fetch custom roles list from Express REST API (strictly scoped to collegeId)
+    api.get('/roles').then(data => {
+      if (Array.isArray(data)) {
+        setRolesList(data);
+        setAllRoles(data.map(r => r.name));
+      } else {
+        setRolesList([]);
+        setAllRoles([]);
       }
-    }).catch(err => console.error("Error fetching custom roles:", err));
+    }).catch(err => {
+      console.error("Error fetching custom roles:", err);
+      setRolesList([]);
+      setAllRoles([]);
+    });
 
     return () => {
       if (teachersUnsub) teachersUnsub();
@@ -584,6 +585,7 @@ export default function StaffAssignment() {
     const errors = {};
     if (!newStaff.staffId?.trim()) errors.staffId = "Staff ID is required";
     if (!newStaff.firstName?.trim()) errors.firstName = "First name is required";
+    if (!newStaff.roleId) errors.roleId = "Role selection is mandatory";
     if (!newStaff.email?.trim()) {
       errors.email = "Email is required";
     } else {
@@ -723,16 +725,37 @@ export default function StaffAssignment() {
       const uploadedUrls = await uploadAllDocuments(newStaff.staffId);
       const uploadedCustomData = await uploadCustomDataFiles(newStaff.customData, schoolId, 'staff');
 
-      // 2. Add to database
+      // 2. Add to backend API (Postgres User with roleId validated against collegeId)
+      let backendStaffUser = null;
+      try {
+        const apiRes = await api.post('/staff', {
+          name: `${newStaff.firstName} ${newStaff.lastName || ''}`.trim(),
+          email: newStaff.email,
+          password: newStaff.password || 'Staff@123',
+          phone: newStaff.mobileNumber || undefined,
+          employeeId: newStaff.staffId || undefined,
+          roleId: newStaff.roleId
+        });
+        backendStaffUser = apiRes?.staff;
+      } catch (apiError) {
+        toast.dismiss(progressToastId);
+        toast.error(apiError.message || "Failed to create staff user in database");
+        setAddingStaff(false);
+        return;
+      }
+
+      // 3. Add to Firestore for local UI realtime synchronization
       const staffDoc = {
         ...newStaff,
+        userId: backendStaffUser?.id || undefined,
+        roleId: newStaff.roleId,
         ...uploadedUrls,
         customData: uploadedCustomData || {},
         name: `${newStaff.firstName} ${newStaff.lastName || ''}`.trim(),
         employeeId: newStaff.staffId,
         createdAt: new Date().toISOString(),
-        roles: newStaff.roles || (newStaff.role ? [newStaff.role] : ['Staffs']),
-        role: (newStaff.roles && newStaff.roles.length > 0) ? newStaff.roles[0] : (newStaff.role || 'Staffs')
+        roles: newStaff.roles && newStaff.roles.length > 0 ? newStaff.roles : (newStaff.role ? [newStaff.role] : []),
+        role: newStaff.role || (newStaff.roles && newStaff.roles[0]) || ''
       };
 
       await addSubDocument(schoolId, 'teachers', staffDoc);
@@ -1092,6 +1115,9 @@ export default function StaffAssignment() {
                           </div>
                           <div className="font-semibold text-slate-900 dark:text-white leading-snug">
                             {name}
+                            <div className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                              {member.customRole?.name || member.role || (member.roles && member.roles[0]) || 'No Role'}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -1627,61 +1653,59 @@ export default function StaffAssignment() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="col-span-1 sm:col-span-3">
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assigned Roles *</label>
-                      <select
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val) {
-                            const currentRoles = newStaff.roles || (newStaff.role ? [newStaff.role] : ['Staffs']);
-                            if (!currentRoles.includes(val)) {
-                              const updated = [...currentRoles, val];
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assigned Role *</label>
+                      {rolesList.length === 0 ? (
+                        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center space-y-2">
+                          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                            No roles have been created for your school yet.
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-400">
+                            A new school starts with zero roles. You must create at least one role with module permissions before adding staff members.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddStaffModalOpen(false);
+                              navigate('/admin/roles');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow transition-colors"
+                          >
+                            <ShieldCheck size={16} /> Go to Roles & Permissions
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <select
+                            value={newStaff.roleId || ''}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              const selectedRole = rolesList.find(r => r.id === selectedId);
                               setNewStaff({
                                 ...newStaff,
-                                roles: updated,
-                                role: updated[0] || 'Staffs'
+                                roleId: selectedId,
+                                role: selectedRole ? selectedRole.name : '',
+                                roles: selectedRole ? [selectedRole.name] : []
                               });
-                            }
-                          }
-                          e.target.value = ''; // reset selection
-                        }}
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm cursor-pointer"
-                      >
-                        <option value="">-- Choose a role to add --</option>
-                        {allRoles.map(roleOption => {
-                          const currentRoles = newStaff.roles || (newStaff.role ? [newStaff.role] : ['Staffs']);
-                          const isAssigned = currentRoles.includes(roleOption);
-                          return (
-                            <option key={roleOption} value={roleOption} disabled={isAssigned}>
-                              {roleOption} {isAssigned ? '(Already added)' : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      
-                      {/* Render assigned roles as tags */}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(newStaff.roles || (newStaff.role ? [newStaff.role] : ['Staffs'])).map(role => (
-                          <span key={role} className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-xl uppercase tracking-wider">
-                            {role}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentRoles = newStaff.roles || (newStaff.role ? [newStaff.role] : ['Staffs']);
-                                let updated = currentRoles.filter(r => r !== role);
-                                if (updated.length === 0) updated = ['Staffs']; // fallback to default
-                                setNewStaff({
-                                  ...newStaff,
-                                  roles: updated,
-                                  role: updated[0] || 'Staffs'
-                                });
-                              }}
-                              className="text-indigo-400 hover:text-indigo-650 focus:outline-none"
-                            >
-                              <X size={14} />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
+                              if (addStaffErrors.roleId) {
+                                setAddStaffErrors(prev => ({ ...prev, roleId: undefined }));
+                              }
+                            }}
+                            className={`w-full px-3 py-2.5 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm cursor-pointer ${
+                              addStaffErrors.roleId ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <option value="">-- Choose a Role --</option>
+                            {rolesList.map(r => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                          {addStaffErrors.roleId && (
+                            <p className="text-xs text-red-500 mt-1">{addStaffErrors.roleId}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assign Class (Optional)</label>
@@ -2252,61 +2276,28 @@ export default function StaffAssignment() {
                           </div>
                         ))}
                         <div className="col-span-1 sm:col-span-2">
-                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assigned Roles *</label>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assigned Role *</label>
                           <select
+                            value={editStaffData.roleId || ''}
                             onChange={(e) => {
-                              const val = e.target.value;
-                              if (val) {
-                                const currentRoles = editStaffData.roles || (editStaffData.role ? [editStaffData.role] : ['Staffs']);
-                                if (!currentRoles.includes(val)) {
-                                  const updated = [...currentRoles, val];
-                                  setEditStaffData({
-                                    ...editStaffData,
-                                    roles: updated,
-                                    role: updated[0] || 'Staffs'
-                                  });
-                                }
-                              }
-                              e.target.value = '';
+                              const selectedId = e.target.value;
+                              const selectedRole = rolesList.find(r => r.id === selectedId);
+                              setEditStaffData({
+                                ...editStaffData,
+                                roleId: selectedId,
+                                role: selectedRole ? selectedRole.name : '',
+                                roles: selectedRole ? [selectedRole.name] : []
+                              });
                             }}
                             className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
                           >
-                            <option value="">-- Choose a role to add --</option>
-                            {allRoles.map(roleOption => {
-                              const currentRoles = editStaffData.roles || (editStaffData.role ? [editStaffData.role] : ['Staffs']);
-                              const isAssigned = currentRoles.includes(roleOption);
-                              return (
-                                <option key={roleOption} value={roleOption} disabled={isAssigned}>
-                                  {roleOption} {isAssigned ? '(Already added)' : ''}
-                                </option>
-                              );
-                            })}
-                          </select>
-
-                          {/* Render assigned roles as tags */}
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {(editStaffData.roles || (editStaffData.role ? [editStaffData.role] : ['Staffs'])).map(role => (
-                              <span key={role} className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-xl uppercase tracking-wider">
-                                {role}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const currentRoles = editStaffData.roles || (editStaffData.role ? [editStaffData.role] : ['Staffs']);
-                                    let updated = currentRoles.filter(r => r !== role);
-                                    if (updated.length === 0) updated = ['Staffs'];
-                                    setEditStaffData({
-                                      ...editStaffData,
-                                      roles: updated,
-                                      role: updated[0] || 'Staffs'
-                                    });
-                                  }}
-                                  className="text-indigo-400 hover:text-indigo-650 focus:outline-none"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </span>
+                            <option value="">-- Choose a Role --</option>
+                            {rolesList.map(r => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
                             ))}
-                          </div>
+                          </select>
                         </div>
                         <div>
                           <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Staff Type</label>

@@ -24,33 +24,51 @@ const loginLimiter = rateLimiter.middleware({
   message: 'Too many login attempts. Please try again in 15 minutes.'
 });
 
-// Helper to flatten permissions from staffRole
-function extractPermissions(staffRole) {
-  if (!staffRole || !staffRole.permissions) return [];
-  const perms = staffRole.permissions;
-  
-  // If array, return array
-  if (Array.isArray(perms)) {
-    return perms;
-  }
-  
-  // If object map { "attendance": { "read": true, "create": true } }
-  if (typeof perms === 'object') {
-    const list = [];
-    for (const [moduleKey, actions] of Object.entries(perms)) {
-      if (typeof actions === 'object' && actions !== null) {
-        if (actions.read || actions.view) list.push(`${moduleKey}:VIEW`);
-        if (actions.create) list.push(`${moduleKey}:CREATE`);
-        if (actions.edit || actions.update) list.push(`${moduleKey}:EDIT`);
-        if (actions.delete) list.push(`${moduleKey}:DELETE`);
-      } else if (actions === true) {
-        list.push(moduleKey);
+// Helper to extract and normalize permissions from customRole or staffRole
+function extractPermissions(customRole, staffRole) {
+  if (customRole && Array.isArray(customRole.permissions)) {
+    const map = {};
+    for (const p of customRole.permissions) {
+      if (p && p.moduleKey) {
+        const mod = p.moduleKey.toLowerCase().replace(/\s+/g, '-');
+        map[mod] = {
+          canCreate: p.canCreate || false,
+          canRead: p.canRead || false,
+          canUpdate: p.canUpdate || false,
+          canDelete: p.canDelete || false,
+          create: p.canCreate || false,
+          read: p.canRead || false,
+          edit: p.canUpdate || false,
+          delete: p.canDelete || false
+        };
       }
     }
-    return list;
+    return map;
   }
-  
-  return [];
+
+  if (!staffRole || !staffRole.permissions) return {};
+  const perms = staffRole.permissions;
+
+  if (typeof perms === 'object' && !Array.isArray(perms)) {
+    return perms;
+  }
+
+  if (Array.isArray(perms)) {
+    const map = {};
+    for (const item of perms) {
+      if (typeof item === 'string') {
+        const [mod, act] = item.toLowerCase().split(':');
+        if (!map[mod]) map[mod] = { read: false, create: false, edit: false, delete: false, canRead: false, canCreate: false, canUpdate: false, canDelete: false };
+        if (!act || act === 'view' || act === 'read') { map[mod].read = true; map[mod].canRead = true; }
+        if (act === 'create') { map[mod].create = true; map[mod].canCreate = true; }
+        if (act === 'edit' || act === 'update') { map[mod].edit = true; map[mod].canUpdate = true; }
+        if (act === 'delete') { map[mod].delete = true; map[mod].canDelete = true; }
+      }
+    }
+    return map;
+  }
+
+  return {};
 }
 
 // POST /api/auth/register-school
@@ -165,6 +183,9 @@ router.post('/register', async (req, res) => {
       },
       include: {
         school: true,
+        customRole: {
+          include: { permissions: true }
+        },
         staffRole: true
       }
     });
@@ -206,14 +227,15 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const schoolStatus = user.school ? user.school.status : (user.role === 'SUPER_ADMIN' ? 'ACTIVE' : null);
-    const setupCompleted = user.school ? user.school.setupCompleted : false;
+    const setupCompleted = user.school ? Boolean(user.school.academicSetupCompleted || user.school.setupCompleted) : false;
+    const academicSetupCompleted = setupCompleted;
     
-    // Derive permissions array
-    let permissions = [];
+    // Derive permissions
+    let permissions = {};
     if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
-      permissions = ['ALL'];
-    } else if (user.role === 'STAFF' && user.staffRole) {
-      permissions = extractPermissions(user.staffRole);
+      permissions = 'ALL';
+    } else if (user.role === 'STAFF') {
+      permissions = extractPermissions(user.customRole, user.staffRole);
     }
 
     const token = jwt.sign(
@@ -240,7 +262,10 @@ router.post('/login', loginLimiter, async (req, res) => {
         role: user.role.toLowerCase(),
         schoolStatus,
         setupCompleted,
+        academicSetupCompleted,
         permissions,
+        rolePermissions: permissions,
+        customRole: user.customRole,
         staffRole: user.staffRole
       }
     });
@@ -331,6 +356,9 @@ router.get('/profile', authenticateToken, async (req, res) => {
       where: { id: req.user.id },
       include: {
         school: true,
+        customRole: {
+          include: { permissions: true }
+        },
         staffRole: true
       }
     });
@@ -340,13 +368,14 @@ router.get('/profile', authenticateToken, async (req, res) => {
     }
 
     const schoolStatus = user.school ? user.school.status : (user.role === 'SUPER_ADMIN' ? 'ACTIVE' : null);
-    const setupCompleted = user.school ? user.school.setupCompleted : false;
+    const setupCompleted = user.school ? Boolean(user.school.academicSetupCompleted || user.school.setupCompleted) : false;
+    const academicSetupCompleted = setupCompleted;
     
-    let permissions = [];
+    let permissions = {};
     if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
-      permissions = ['ALL'];
-    } else if (user.role === 'STAFF' && user.staffRole) {
-      permissions = extractPermissions(user.staffRole);
+      permissions = 'ALL';
+    } else if (user.role === 'STAFF') {
+      permissions = extractPermissions(user.customRole, user.staffRole);
     }
 
     // Self-heal outdated JWT tokens
@@ -373,7 +402,10 @@ router.get('/profile', authenticateToken, async (req, res) => {
       role: user.role.toLowerCase(),
       schoolStatus,
       setupCompleted,
+      academicSetupCompleted,
       permissions,
+      rolePermissions: permissions,
+      customRole: user.customRole,
       ...(freshToken ? { token: freshToken } : {})
     });
   } catch (error) {

@@ -36,6 +36,13 @@ async function migrate() {
 
     console.log('🔨 Executing table creation, indexes, and foreign keys...');
     await client.query(sql);
+
+    // Drop legacy conflicting constraints to align with schema.prisma
+    await client.query(`
+      ALTER TABLE "Parent" DROP CONSTRAINT IF EXISTS "Parent_userId_key" CASCADE;
+      ALTER TABLE "Student" DROP CONSTRAINT IF EXISTS "Student_schoolId_admissionNo_key" CASCADE;
+    `);
+
     console.log('✅ All tables, enums, unique constraints, and indexes created successfully!\n');
 
     // 2. Ensure Super Admin user exists
