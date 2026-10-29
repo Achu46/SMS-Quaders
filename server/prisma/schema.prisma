@@ -55,6 +55,7 @@ model School {
   assessmentGrades        AssessmentGrade[]
   reportCardTemplates     ReportCardTemplate[]
   reportCards             ReportCard[]
+  staffInvites            StaffInvite[]
 }
 
 enum UserRole {
@@ -64,6 +65,12 @@ enum UserRole {
   PARENT
 
   @@map("Role")
+}
+
+enum StaffStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
 }
 
 model Role {
@@ -125,11 +132,11 @@ model User {
   school           School?           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   
   email            String            @unique
-  password         String
+  password         String?
   name             String
   phone            String?
   employeeId       String?
-  status           String            @default("ACTIVE") // ACTIVE, INACTIVE
+  status           StaffStatus       @default(INVITED)
   role             UserRole          @default(PARENT)
   
   roleId           String?
@@ -143,12 +150,35 @@ model User {
   parents          Parent[]
   assessmentsTaught Assessment[]
   gradeOverrides   AssessmentGrade[] @relation("GradeOverrides")
+  staffInvites     StaffInvite[]     @relation("StaffInvites")
+  createdInvites   StaffInvite[]     @relation("CreatedInvites")
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
+  @@unique([schoolId, employeeId])
   @@index([schoolId])
   @@index([roleId])
+}
+
+model StaffInvite {
+  id          String    @id @default(uuid())
+  collegeId   String
+  school      School    @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  staffId     String
+  staff       User      @relation("StaffInvites", fields: [staffId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  createdById String?
+  createdBy   User?     @relation("CreatedInvites", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([collegeId])
+  @@index([staffId])
+  @@index([tokenHash])
+  @@map("staff_invites")
 }
 
 model AcademicYear {

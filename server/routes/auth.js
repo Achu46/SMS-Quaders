@@ -186,6 +186,9 @@ router.post('/register', async (req, res) => {
         customRole: {
           include: { permissions: true }
         },
+        customRole: {
+          include: { permissions: true }
+        },
         staffRole: true
       }
     });
@@ -213,11 +216,22 @@ router.post('/login', loginLimiter, async (req, res) => {
       where: { email: email.toLowerCase().trim() },
       include: {
         school: true,
+        customRole: {
+          include: { permissions: true }
+        },
         staffRole: true
       }
     });
     
     if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (user.status === 'INVITED') {
+      return res.status(403).json({ error: 'Please complete your registration using the link shared by your admin.' });
+    }
+
+    if (!user.password) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -311,6 +325,14 @@ router.post('/login-admission', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Parent account not activated for this student' });
     }
 
+    if (user.status === 'INVITED') {
+      return res.status(403).json({ error: 'Please complete your registration using the link shared by your admin.' });
+    }
+
+    if (!user.password) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid password' });
@@ -356,6 +378,9 @@ router.get('/profile', authenticateToken, async (req, res) => {
       where: { id: req.user.id },
       include: {
         school: true,
+        customRole: {
+          include: { permissions: true }
+        },
         customRole: {
           include: { permissions: true }
         },

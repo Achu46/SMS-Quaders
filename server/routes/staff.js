@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { z } = require('zod');
+const emailService = require('../services/emailService');
 const { authenticateToken, requireActiveSchool, requireAcademicSetup, requireRole, requirePermission } = require('../middleware');
 
 // All staff management routes require active school + academic setup preconditions
@@ -11,9 +13,8 @@ router.use(authenticateToken, requireActiveSchool, requireAcademicSetup);
 const createStaffSchema = z.object({
   name: z.string().min(1, 'Name is required').trim(),
   email: z.string().email('Valid email address is required').trim().toLowerCase(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   phone: z.string().optional().nullable(),
-  employeeId: z.string().optional().nullable(),
+  employeeId: z.string().min(1, 'Employee ID is mandatory').trim(),
   roleId: z.string().min(1, 'Role selection is mandatory')
 });
 
@@ -88,11 +89,18 @@ router.post('/', requirePermission('staff', 'CREATE'), async (req, res) => {
       return res.status(400).json({ error: msg });
     }
 
-    const { name, email, password, phone, employeeId, roleId } = parsed.data;
+    const { name, email, phone, employeeId, roleId } = parsed.data;
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
       return res.status(400).json({ error: 'A user with this email already exists' });
+    }
+
+    const existingEmp = await prisma.user.findFirst({
+      where: { schoolId: collegeId, employeeId }
+    });
+    if (existingEmp) {
+      return res.status(400).json({ error: `A staff member with Employee ID "${employeeId}" already exists in your institution` });
     }
 
     // Validate that roleId belongs to the same collegeId (tenant isolation)
@@ -113,20 +121,17 @@ router.post('/', requirePermission('staff', 'CREATE'), async (req, res) => {
       return res.status(400).json({ error: `The role "${role.name}" has no active module permissions. Assign at least one permission before assigning it to staff.` });
     }
 
-    const defaultPassword = password || 'Staff@123';
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-
     const newStaff = await prisma.user.create({
       data: {
         schoolId: collegeId,
         name,
         email,
-        password: hashedPassword,
+        password: null, // Password set by staff via secure invite link
         phone: phone ? phone.trim() : null,
-        employeeId: employeeId ? employeeId.trim() : null,
+        employeeId: employeeId.trim(),
         role: 'STAFF',
         roleId: role.id,
-        status: 'ACTIVE'
+        status: 'INVITED'
       },
       include: {
         customRole: {
@@ -137,12 +142,216 @@ router.post('/', requirePermission('staff', 'CREATE'), async (req, res) => {
 
     const { password: _, ...staffWithoutPassword } = newStaff;
     res.status(201).json({
-      message: 'Staff member created successfully',
+      message: 'Staff member created successfully with status INVITED',
       staff: staffWithoutPassword
     });
   } catch (error) {
     console.error('Create staff error:', error);
     res.status(500).json({ error: 'Failed to create staff member' });
+  }
+});
+
+// POST /api/staff/:id/invite
+// Generate or regenerate an invite link for an INVITED staff member
+router.post('/:id/invite', requirePermission('staff', 'EDIT'), async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const collegeId = req.user.schoolId;
+    const staffId = req.params.id;
+    const { sendEmail } = req.body || {};
+
+    const staff = await prisma.user.findFirst({
+      where: { id: staffId, schoolId: collegeId, role: 'STAFF' },
+      include: {
+        school: true,
+        customRole: true
+      }
+    });
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff member not found in your institution' });
+    }
+
+    if (staff.status === 'INACTIVE') {
+      return res.status(400).json({ error: 'Cannot generate an invite for a deactivated staff member' });
+    }
+
+    if (staff.status === 'ACTIVE') {
+      return res.status(400).json({ error: 'Staff member has already registered and is ACTIVE' });
+    }
+
+    if (staff.school?.status !== 'ACTIVE') {
+      return res.status(403).json({ error: 'Institution is not ACTIVE' });
+    }
+
+    // Generate secure URL-safe token (32 bytes = 64 hex chars)
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    // Revoke any existing active/unused invites for this staff
+    await prisma.staffInvite.updateMany({
+      where: {
+        staffId: staff.id,
+        usedAt: null,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+
+    // Expiry: 48 hours (configurable via STAFF_INVITE_EXPIRY_HOURS)
+    const expiryHours = parseInt(process.env.STAFF_INVITE_EXPIRY_HOURS || '48', 10);
+    const expiresAt = new Date(Date.now() + expiryHours * 3600 * 1000);
+
+    await prisma.staffInvite.create({
+      data: {
+        collegeId,
+        staffId: staff.id,
+        tokenHash,
+        expiresAt,
+        createdById: req.user.id
+      }
+    });
+
+    const clientBaseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const inviteUrl = `${clientBaseUrl}/staff/register?token=${rawToken}`;
+
+    // If sendEmail is requested, dispatch email via emailService
+    let emailSent = false;
+    if (sendEmail) {
+      try {
+        await emailService.sendTemplateEmail('STAFF_INVITE', staff.email, {
+          userName: staff.name,
+          employeeId: staff.employeeId,
+          roleName: staff.customRole?.name || 'Staff Member',
+          schoolName: staff.school?.name,
+          inviteUrl
+        });
+        emailSent = true;
+      } catch (err) {
+        console.warn('Failed to send staff invite email:', err.message);
+      }
+    }
+
+    res.json({
+      message: 'Invite link generated successfully',
+      inviteUrl,
+      expiresAt,
+      emailSent
+    });
+  } catch (error) {
+    console.error('Generate staff invite error:', error);
+    res.status(500).json({ error: 'Failed to generate staff invite' });
+  }
+});
+
+// GET /api/staff/:id/invite
+// Current invite status for a staff member (none / active / expired / used / revoked)
+router.get('/:id/invite', requirePermission('staff', 'VIEW'), async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const collegeId = req.user.schoolId;
+    const staffId = req.params.id;
+
+    const staff = await prisma.user.findFirst({
+      where: { id: staffId, schoolId: collegeId, role: 'STAFF' }
+    });
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff member not found in your institution' });
+    }
+
+    if (staff.status === 'ACTIVE') {
+      return res.json({ status: 'ACTIVE_USER', message: 'Staff member is already active' });
+    }
+
+    const latestInvite = await prisma.staffInvite.findFirst({
+      where: { staffId: staff.id, collegeId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!latestInvite) {
+      return res.json({ status: 'NONE' });
+    }
+
+    if (latestInvite.usedAt) {
+      return res.json({ status: 'USED', usedAt: latestInvite.usedAt });
+    }
+
+    if (latestInvite.revokedAt) {
+      return res.json({ status: 'REVOKED', revokedAt: latestInvite.revokedAt });
+    }
+
+    if (new Date() > new Date(latestInvite.expiresAt)) {
+      return res.json({ status: 'EXPIRED', expiresAt: latestInvite.expiresAt });
+    }
+
+    return res.json({ status: 'ACTIVE', expiresAt: latestInvite.expiresAt });
+  } catch (error) {
+    console.error('Fetch invite status error:', error);
+    res.status(500).json({ error: 'Failed to fetch invite status' });
+  }
+});
+
+// POST /api/staff/:id/invite/send-email
+// Send invite email to staff
+router.post('/:id/invite/send-email', requirePermission('staff', 'EDIT'), async (req, res) => {
+  try {
+    const prisma = req.prisma;
+    const collegeId = req.user.schoolId;
+    const staffId = req.params.id;
+
+    const staff = await prisma.user.findFirst({
+      where: { id: staffId, schoolId: collegeId, role: 'STAFF' },
+      include: { school: true, customRole: true }
+    });
+
+    if (!staff) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+
+    if (staff.status !== 'INVITED') {
+      return res.status(400).json({ error: `Cannot send invite to staff with status ${staff.status}` });
+    }
+
+    // Always generate a fresh token when explicitly re-sending
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    await prisma.staffInvite.updateMany({
+      where: { staffId: staff.id, usedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
+
+    const expiryHours = parseInt(process.env.STAFF_INVITE_EXPIRY_HOURS || '48', 10);
+    const expiresAt = new Date(Date.now() + expiryHours * 3600 * 1000);
+
+    await prisma.staffInvite.create({
+      data: {
+        collegeId,
+        staffId: staff.id,
+        tokenHash,
+        expiresAt,
+        createdById: req.user.id
+      }
+    });
+
+    const clientBaseUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const inviteUrl = `${clientBaseUrl}/staff/register?token=${rawToken}`;
+
+    await emailService.sendTemplateEmail('STAFF_INVITE', staff.email, {
+      userName: staff.name,
+      employeeId: staff.employeeId,
+      roleName: staff.customRole?.name || 'Staff Member',
+      schoolName: staff.school?.name,
+      inviteUrl
+    });
+
+    res.json({ message: `Invite email sent to ${staff.email}`, inviteUrl, expiresAt });
+  } catch (error) {
+    console.error('Send invite email error:', error);
+    res.status(500).json({ error: 'Failed to send invite email' });
   }
 });
 
