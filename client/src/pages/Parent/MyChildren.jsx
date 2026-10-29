@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../firebase/config';
-import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/mockFirestore';
+import { doc, getDoc, updateDoc, onSnapshot } from '../../firebase/mockFirestore';
 import { 
   findStudentByAdmission, 
   linkStudentToParent, 

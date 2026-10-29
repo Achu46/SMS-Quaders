@@ -11,12 +11,16 @@ export const registerSchool = async (schoolData) => {
 
 // General User Registration
 export const registerUser = async (email, password, role, additionalData = {}) => {
-  return await api.post('/auth/register', {
+  const data = await api.post('/auth/register', {
     email,
     password,
     role: role?.toUpperCase() || 'PARENT',
     ...additionalData
   });
+  if (data.token) {
+    api.setToken(data.token);
+  }
+  return data.user || data;
 };
 
 // Universal Login

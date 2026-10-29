@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToSubCollection, updateSubDocument, getSubCollection, addSubDocument } from '../../firebase/firestore';
 import { LuFileText as FileText, LuClock as Clock, LuCircleCheck as CheckCircle2, LuUser as User, LuBookOpen as BookOpen } from 'react-icons/lu';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { doc, getDoc, setDoc } from '../../firebase/mockFirestore';
+import { db } from '../../firebase/mockFirestore';
 import { TableSkeleton } from '../../components/Skeleton';
 import toast from 'react-hot-toast';
 

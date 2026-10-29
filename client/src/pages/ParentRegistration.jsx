@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { registerUser } from '../services/auth';
 import { addSubDocument } from '../firebase/firestore';
-import { db } from '../firebase/config';
-import { getDoc, doc } from 'firebase/firestore';
+import { db, getDoc, doc } from '../firebase/mockFirestore';
+import { useAuth } from '../context/AuthContext';
 import { LuUser as UserIcon, LuLock as LockIcon, LuHash as HashIcon, LuBuilding2, LuEye, LuEyeOff } from 'react-icons/lu';
 import Captcha from '../components/Captcha';
 
 export default function ParentRegistration() {
   const { schoolId } = useParams();
   const navigate = useNavigate();
+  const { handleAuthChange } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -61,7 +62,7 @@ export default function ParentRegistration() {
     setIsRegistering(true);
     setError(null);
     try {
-      const syntheticEmail = `${formData.admissionNumber.replace(/[^a-zA-Z0-9]/g, '')}@parent.School.com`.toLowerCase();
+      const syntheticEmail = `${formData.admissionNumber.replace(/[^a-zA-Z0-9]/g, '')}@parent.quaders.com`.toLowerCase();
 
       const user = await registerUser(syntheticEmail, formData.password, 'parent', {
         name: formData.name,
@@ -71,15 +72,19 @@ export default function ParentRegistration() {
       });
 
       await addSubDocument(schoolId, 'parents', {
-        userId: user.uid,
+        userId: user?.id || user?.uid,
         name: formData.name,
         studentAdmissionNumber: formData.admissionNumber
       });
 
+      if (handleAuthChange) {
+        handleAuthChange();
+      }
+
       navigate('/parent');
     } catch (err) {
       console.error(err);
-      if (err.code === 'auth/email-already-in-use') {
+      if (err.code === 'auth/email-already-in-use' || err.message?.includes('already exists')) {
         setError("An account is already registered for this admission number. Please go to the login page and sign in.");
       } else {
         setError("Registration failed. Please check your details and try again.");

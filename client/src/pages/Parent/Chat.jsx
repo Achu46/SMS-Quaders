@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToMessages, sendMessage, getTeachersForChat, deleteChatMessage, markChatRead, getChannelsForUser, subscribeToChannelMessages, sendChannelMessage } from '../../firebase/firestore';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { collection, query, where, onSnapshot, doc, getDoc } from '../../firebase/mockFirestore';
+import { db } from '../../firebase/mockFirestore';
 import { LuMessageSquare as MessageSquare, LuFile as FileIcon, LuTrash2 as Trash2, LuCircleCheck as CheckCircle, LuClock as Clock, LuDownload as DownloadIcon, LuX as XIcon, LuCopy as Copy, LuForward as Forward, LuBan as Ban } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ChatInput from '../../components/ChatInput';

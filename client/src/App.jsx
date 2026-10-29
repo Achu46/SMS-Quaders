@@ -248,7 +248,7 @@ function App() {
             <Route 
               path="/parent" 
               element={
-                <ProtectedRoute allowedRoles={['parent']}>
+                <ProtectedRoute allowedRoles={['parent', 'admin', 'superadmin']}>
                   <ParentDashboard />
                 </ProtectedRoute>
               } 

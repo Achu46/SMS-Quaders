@@ -374,7 +374,12 @@ export const subscribeToStudentsByClass = (schoolId, classId, callback) => {
 export const findStudentByAdmission = async (schoolId, admissionNumber, dob) => {
   const students = await getSubCollection(schoolId, 'students');
   const clean = (admissionNumber || '').trim().toLowerCase();
-  return students.find(s => (s.admissionNumber || s.admissionNo || '').trim().toLowerCase() === clean) || null;
+  return students.find(s => {
+    const adm = (s.admissionNumber || s.admissionNo || '').trim().toLowerCase();
+    if (adm !== clean) return false;
+    if (dob && s.dob && s.dob !== dob) return false;
+    return true;
+  }) || null;
 };
 
 // --- Assessments / Grades Operations ---
@@ -727,9 +732,15 @@ export const sendMessage = async (s, r, data) => addSubDocument(s, `room_${r}_me
 export const getChatThreads = async (schoolId) => getSubCollection(schoolId, 'chat_threads');
 export const cleanupOldChatAudio = async () => {};
 export const updateStudentRunningStatsAndFlags = async () => {};
-export const unlinkStudentFromParent = async () => {};
-export const linkStudentToParent = async () => {};
-export const switchActiveStudent = async () => {};
+export const unlinkStudentFromParent = async (userId, studentId) => {
+  return await api.post('/auth/unlink-student', { studentId });
+};
+export const linkStudentToParent = async (userId, studentId, classId, studentName) => {
+  return await api.post('/auth/link-student', { studentId, classId, studentName });
+};
+export const switchActiveStudent = async (userId, studentId, classId) => {
+  return await api.post('/auth/switch-student', { studentId, classId });
+};
 export const subscribeToStudentPTMs = (schoolId, studentId, callback) => {
   return subscribeToSubCollection(schoolId, 'ptm_meetings', (all) => {
     callback((all || []).filter(p => p.studentId === studentId));

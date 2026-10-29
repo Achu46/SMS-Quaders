@@ -38,7 +38,9 @@ export default function ParentDashboard() {
 
   useEffect(() => {
     let isMounted = true;
-    if (userProfile && userProfile.role !== 'parent') {
+    const roleLower = (userProfile?.role || '').toLowerCase();
+    const isAllowed = roleLower === 'parent' || roleLower === 'admin' || roleLower === 'superadmin' || roleLower === 'super_admin';
+    if (userProfile && !isAllowed) {
       navigate('/');
     } else if (userProfile?.schoolId) {
       if (userProfile.school) {
@@ -91,6 +93,22 @@ export default function ParentDashboard() {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
+  const navItems = [
+    { name: 'Student Overview', path: '/parent', icon: UserCircle, exact: true },
+    { name: 'My Children', path: '/parent/children', icon: Users },
+    { name: 'Performance', path: '/parent/performance', icon: TrendingUp },
+    { name: 'PTM Meetings', path: '/parent/ptm', icon: CalendarClock },
+    { name: 'Noticeboard', path: '/parent/notices', icon: Bell, moduleKey: 'noticeboard' },
+    { name: 'Calendar', path: '/parent/calendar', icon: Calendar },
+    { name: 'Attendance', path: '/parent/attendance', icon: CheckSquare },
+    { name: 'Canteen', path: '/parent/canteen', icon: Coffee },
+    { name: 'Homework', path: '/parent/homework', icon: FileText, moduleKey: 'homework' },
+    { name: 'Report Card', path: '/parent/grades', icon: GraduationCap },
+    { name: 'Fees & Payments', path: '/parent/fees', icon: CreditCard, moduleKey: 'fees' },
+    { name: 'Leave Requests', path: '/parent/leaves', icon: Calendar },
+    { name: 'Messages', path: '/parent/chat', icon: MessageSquare, moduleKey: 'chats' }
+  ];
+
   useEffect(() => {
     const matchedItem = navItems.find(item => location.pathname === item.path);
     if (matchedItem && matchedItem.moduleKey) {
@@ -121,7 +139,7 @@ export default function ParentDashboard() {
       const studentName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Student';
 
       // 2. Link the student to the parent's profile
-      await linkStudentToParent(currentUser.uid, student.id, student.classId, studentName);
+      await linkStudentToParent(currentUser?.uid || userProfile?.id, student.id, student.classId, studentName);
       
       // 3. Update local auth context to trigger re-render
       await updateProfileData();
@@ -147,7 +165,7 @@ export default function ParentDashboard() {
       }
       
       const studentName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Student';
-      await linkStudentToParent(currentUser.uid, student.id, student.classId, studentName);
+      await linkStudentToParent(currentUser?.uid || userProfile?.id, student.id, student.classId, studentName);
       await updateProfileData();
       
       setIsLinkAnotherModalOpen(false);
@@ -165,7 +183,7 @@ export default function ParentDashboard() {
   const handleSwitchChild = async (studentId, classId) => {
     if (studentId === userProfile.linkedStudentId) return;
     try {
-      await switchActiveStudent(currentUser.uid, studentId, classId);
+      await switchActiveStudent(currentUser?.uid || userProfile?.id, studentId, classId);
       await updateProfileData();
       setIsChildDropdownOpen(false);
     } catch (error) {
@@ -176,21 +194,7 @@ export default function ParentDashboard() {
   const activeStudentInfo = userProfile?.linkedStudents?.find(s => s.studentId === userProfile?.linkedStudentId);
   const activeChildName = activeStudentInfo?.name || 'Active Child';
 
-  const navItems = [
-    { name: 'Student Overview', path: '/parent', icon: UserCircle, exact: true },
-    { name: 'My Children', path: '/parent/children', icon: Users },
-    { name: 'Performance', path: '/parent/performance', icon: TrendingUp },
-    { name: 'PTM Meetings', path: '/parent/ptm', icon: CalendarClock },
-    { name: 'Noticeboard', path: '/parent/notices', icon: Bell, moduleKey: 'noticeboard' },
-    { name: 'Calendar', path: '/parent/calendar', icon: Calendar },
-    { name: 'Attendance', path: '/parent/attendance', icon: CheckSquare },
-    { name: 'Canteen', path: '/parent/canteen', icon: Coffee },
-    { name: 'Homework', path: '/parent/homework', icon: FileText, moduleKey: 'homework' },
-    { name: 'Report Card', path: '/parent/grades', icon: GraduationCap },
-    { name: 'Fees & Payments', path: '/parent/fees', icon: CreditCard, moduleKey: 'fees' },
-    { name: 'Leave Requests', path: '/parent/leaves', icon: Calendar },
-    { name: 'Messages', path: '/parent/chat', icon: MessageSquare, moduleKey: 'chats' }
-  ];
+
 
   if (loading) {
     return (
@@ -201,7 +205,8 @@ export default function ParentDashboard() {
   }
 
   // --- LOCK SCREEN: Link Student ---
-  if (!userProfile?.linkedStudentId) {
+  const isParentRole = (userProfile?.role || '').toLowerCase() === 'parent';
+  if (isParentRole && !userProfile?.linkedStudentId) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full shadow-xl border border-slate-200 dark:border-slate-700 relative overflow-hidden">

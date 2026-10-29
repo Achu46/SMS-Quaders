@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { db } from '../../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase/mockFirestore';
+import { collection, query, where, onSnapshot } from '../../firebase/mockFirestore';
 import { LuCreditCard as CreditCard, LuReceipt as Receipt, LuCircleCheck as CheckCircle2, LuTrendingUp as TrendingUp, LuTriangleAlert as AlertTriangle, LuInfo as Info } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 

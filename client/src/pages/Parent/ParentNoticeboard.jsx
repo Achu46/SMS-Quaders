@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToGlobalNotices, subscribeToClassNotices, markNoticeAsViewed } from '../../firebase/firestore';
 import { LuBell as Bell, LuMegaphone as Megaphone, LuUsers as Users, LuTriangleAlert as AlertTriangle } from 'react-icons/lu';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { doc, getDoc } from '../../firebase/mockFirestore';
+import { db } from '../../firebase/mockFirestore';
 
 export default function ParentNoticeboard() {
   const { userProfile, currentUser } = useAuth();

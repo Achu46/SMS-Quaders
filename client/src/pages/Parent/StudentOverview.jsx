@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getDoc, doc, onSnapshot, collection, query, where } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getDoc, doc, onSnapshot, collection, query, where } from '../../firebase/mockFirestore';
+import { db } from '../../firebase/mockFirestore';
 import { subscribeToAttendanceForClass, subscribeToAssessmentsByClass } from '../../firebase/firestore';
 import { LuCircleUser as UserCircle, LuCalendar as Calendar, LuGraduationCap as GraduationCap, LuCircleCheck as CheckCircle2, LuTrendingUp as TrendingUp, LuTriangleAlert as AlertTriangle, LuCreditCard as CreditCard, LuArrowRight as ArrowRight } from 'react-icons/lu';
 

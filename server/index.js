@@ -245,4 +245,11 @@ process.on('unhandledRejection', (reason, promise) => {
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Quaders server running on port ${PORT}`);
+  prisma.$connect()
+    .then(() => console.log('✅ PostgreSQL database connected successfully.'))
+    .catch((err) => {
+      console.warn('⚠️  [Database Warning] Could not connect to PostgreSQL database.');
+      console.warn(`   DATABASE_URL: ${process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':***@') : 'Not set'}`);
+      console.warn('   Please ensure your PostgreSQL server is running or provide a valid connection string in server/.env');
+    });
 });

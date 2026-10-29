@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { LuPlus, LuCalendar, LuFileText, LuClock, LuCircleCheck, LuCircleX, LuFolderDown, LuX, LuDownload } from 'react-icons/lu';
 import { useAuth } from '../../context/AuthContext';
 import { subscribeToSubCollection, addSubDocument } from '../../firebase/firestore';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { doc, getDoc } from '../../firebase/mockFirestore';
+import { db } from '../../firebase/mockFirestore';
 import { uploadFileToCloudinaryOrFirebase } from '../../utils/cloudinary';
 import toast from 'react-hot-toast';
 

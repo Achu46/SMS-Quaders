@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getDoc, doc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { getDoc, doc } from '../../firebase/mockFirestore';
+import { db } from '../../firebase/mockFirestore';
 import { 
   subscribeToAttendanceForClass, 
   subscribeToAssessmentsByClass 
