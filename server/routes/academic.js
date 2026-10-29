@@ -458,10 +458,38 @@ router.post('/complete-setup', async (req, res) => {
       return res.status(404).json({ error: 'School not found' });
     }
 
-    if (school._count.academicYears === 0 || school._count.classes === 0) {
-      return res.status(400).json({ 
-        error: 'Cannot complete setup: At least one Academic Year and one Class must be created.',
-        counts: school._count 
+    // Auto-provision default Academic Year and Class if missing during setup completion
+    if (school._count.academicYears === 0) {
+      const currentYear = new Date().getFullYear();
+      await prisma.academicYear.create({
+        data: {
+          schoolId,
+          name: `${currentYear}-${currentYear + 1}`,
+          startDate: new Date(`${currentYear}-06-01`),
+          endDate: new Date(`${currentYear + 1}-04-30`),
+          isCurrent: true
+        }
+      });
+    }
+
+    if (school._count.classes === 0) {
+      const currentYearRecord = await prisma.academicYear.findFirst({
+        where: { schoolId },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      await prisma.class.create({
+        data: {
+          schoolId,
+          academicYearId: currentYearRecord?.id || null,
+          name: 'Class 1',
+          order: 1,
+          sections: {
+            create: [
+              { schoolId, name: 'A', capacity: 40 }
+            ]
+          }
+        }
       });
     }
 

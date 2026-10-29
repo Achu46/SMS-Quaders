@@ -359,16 +359,23 @@ export default function EnvironmentSetup() {
     setCompletingSetup(true);
     const toastId = toast.loading('Finalizing Academic Setup and unlocking modules...');
     try {
-      // 1. Update Firestore
-      await updateSchool(schoolId, {
-        ...formData,
-        customData,
-        setupCompleted: true,
-        academicSetupCompleted: true
-      });
-
-      // 2. Update PostgreSQL backend via /api/academic/complete-setup
+      // 1. Update PostgreSQL backend via /api/academic/complete-setup (Step 2 Mandatory Gate)
       await api.post('/academic/complete-setup');
+
+      // 2. Update School profile / branding in background
+      try {
+        await updateSchool(schoolId, {
+          name: formData.name,
+          contactPhone: formData.contactPhone,
+          location: formData.location,
+          website: formData.website,
+          academicConfig: formData.academicConfig,
+          setupCompleted: true,
+          academicSetupCompleted: true
+        });
+      } catch (brandingErr) {
+        console.warn('School metadata update warning:', brandingErr);
+      }
 
       // 3. Refresh user profile in context so setupCompleted = true
       if (typeof updateProfileData === 'function') {

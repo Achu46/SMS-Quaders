@@ -51,12 +51,14 @@ app.use(helmet({
 app.use(cors(corsOptions));
 // Serve local static file uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// Preserve raw request body buffer for cryptographic payment webhook signature verification
+// Preserve raw request body buffer for cryptographic payment webhook signature verification (50MB limit for branding/logo data)
 app.use(express.json({
+  limit: '50mb',
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Socket.io Authentication Middleware
 io.use((socket, next) => {
