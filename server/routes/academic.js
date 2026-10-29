@@ -483,10 +483,9 @@ router.post('/complete-setup', async (req, res) => {
           schoolId,
           academicYearId: currentYearRecord?.id || null,
           name: 'Class 1',
-          order: 1,
           sections: {
             create: [
-              { schoolId, name: 'A', capacity: 40 }
+              { schoolId, name: 'A' }
             ]
           }
         }
