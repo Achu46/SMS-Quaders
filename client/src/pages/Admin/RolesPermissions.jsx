@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { 
   LuShield, LuSave, LuCheck, LuX, LuPlus, LuTrash2, LuLock, 
-  LuTriangleAlert as LuAlertTriangle, LuUsers, LuFolderCheck, LuArrowRight, LuInfo
+  LuTriangleAlert as LuAlertTriangle, LuUsers, LuFolderCheck, LuArrowRight, LuInfo, LuSearch
 } from 'react-icons/lu';
 import toast from 'react-hot-toast';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -54,6 +54,7 @@ export default function RolesPermissions() {
   const [editedPermissions, setEditedPermissions] = useState({}); // { [moduleKey]: { canCreate, canRead, canUpdate, canDelete } }
   const [editedRoleName, setEditedRoleName] = useState('');
   const [editedRoleDesc, setEditedRoleDesc] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Delete modal state
   const [deleteModal, setDeleteModal] = useState({
@@ -162,6 +163,47 @@ export default function RolesPermissions() {
       }
     }));
   };
+
+  // Bulk grant all permissions across all modules
+  const handleGrantAll = () => {
+    setEditedPermissions(prev => {
+      const updated = { ...prev };
+      modules.forEach(m => {
+        const key = m.id.toLowerCase();
+        updated[key] = {
+          canCreate: true,
+          canRead: true,
+          canUpdate: true,
+          canDelete: true
+        };
+      });
+      return updated;
+    });
+  };
+
+  // Bulk revoke all permissions across all modules
+  const handleRevokeAll = () => {
+    setEditedPermissions(prev => {
+      const updated = { ...prev };
+      modules.forEach(m => {
+        const key = m.id.toLowerCase();
+        updated[key] = {
+          canCreate: false,
+          canRead: false,
+          canUpdate: false,
+          canDelete: false
+        };
+      });
+      return updated;
+    });
+  };
+
+  const filteredModules = modules.filter(m => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    const label = (m.label || m.name || m.id).toLowerCase();
+    return label.includes(term) || m.id.toLowerCase().includes(term);
+  });
 
   // Save changes to the active role
   const handleSaveActiveRole = async () => {
@@ -403,7 +445,7 @@ export default function RolesPermissions() {
               </span>
             </div>
 
-            <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
+            <div className="space-y-1.5 max-h-[520px] overflow-y-auto custom-scrollbar pr-1">
               {roles.map(r => {
                 const isSelected = r.id === activeRoleId;
                 const assignedUsers = r._count?.users || 0;
@@ -444,12 +486,12 @@ export default function RolesPermissions() {
           </div>
 
           {/* Permissions Matrix Panel */}
-          <div className="lg:col-span-3 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div className="lg:col-span-3 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col space-y-4">
             {activeRole ? (
               <>
                 {/* Role Info Bar & Save */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div className="space-y-1 flex-1">
+                  <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <input
                         type="text"
@@ -458,7 +500,7 @@ export default function RolesPermissions() {
                         className="text-lg font-bold text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 focus:border-primary-500 focus:outline-none px-1"
                         placeholder="Role Name"
                       />
-                      <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                      <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg shrink-0">
                         {activeRole._count?.users || 0} Staff Assigned
                       </span>
                     </div>
@@ -481,90 +523,133 @@ export default function RolesPermissions() {
                   </button>
                 </div>
 
-                {/* Permissions Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="py-3 px-4">Module Name</th>
-                        <th className="py-3 px-3 text-center">Create</th>
-                        <th className="py-3 px-3 text-center">Read / View</th>
-                        <th className="py-3 px-3 text-center">Update / Edit</th>
-                        <th className="py-3 px-3 text-center">Delete</th>
-                        <th className="py-3 px-4 text-right">Quick Select</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                      {modules.map(m => {
-                        const key = m.id.toLowerCase();
-                        const p = editedPermissions[key] || { canCreate: false, canRead: false, canUpdate: false, canDelete: false };
-                        const isAllActive = p.canCreate && p.canRead && p.canUpdate && p.canDelete;
+                {/* Filter and Bulk Action Controls */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Filter modules (e.g. Fees, Attendance)..."
+                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-slate-800 dark:text-slate-200"
+                    />
+                  </div>
 
-                        return (
-                          <tr key={m.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                            <td className="py-3.5 px-4 font-medium text-slate-800 dark:text-slate-200">
-                              {m.label || m.name || m.id}
-                            </td>
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={handleGrantAll}
+                      className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-lg transition-colors"
+                      title="Grant all CRUD permissions across all modules"
+                    >
+                      Grant All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRevokeAll}
+                      className="text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 font-semibold rounded-lg transition-colors"
+                      title="Clear all permissions"
+                    >
+                      Revoke All
+                    </button>
+                  </div>
+                </div>
 
-                            {/* Create Checkbox */}
-                            <td className="py-3.5 px-3 text-center">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(p.canCreate)}
-                                onChange={() => handleTogglePermission(m.id, 'canCreate')}
-                                className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
-                              />
-                            </td>
-
-                            {/* Read Checkbox */}
-                            <td className="py-3.5 px-3 text-center">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(p.canRead)}
-                                onChange={() => handleTogglePermission(m.id, 'canRead')}
-                                className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
-                              />
-                            </td>
-
-                            {/* Update Checkbox */}
-                            <td className="py-3.5 px-3 text-center">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(p.canUpdate)}
-                                onChange={() => handleTogglePermission(m.id, 'canUpdate')}
-                                className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
-                              />
-                            </td>
-
-                            {/* Delete Checkbox */}
-                            <td className="py-3.5 px-3 text-center">
-                              <input
-                                type="checkbox"
-                                checked={Boolean(p.canDelete)}
-                                onChange={() => handleTogglePermission(m.id, 'canDelete')}
-                                className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
-                              />
-                            </td>
-
-                            {/* Quick Select Buttons */}
-                            <td className="py-3.5 px-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleQuickSelectRow(m.id, !isAllActive)}
-                                className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${
-                                  isAllActive
-                                    ? 'bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-200'
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                                }`}
-                              >
-                                {isAllActive ? 'Clear' : 'Select All'}
-                              </button>
+                {/* Permissions Table - Independently Scrollable Section */}
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                  <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-left text-sm border-collapse">
+                      <thead className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 shadow-sm">
+                        <tr className="border-b border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          <th className="py-3 px-4 bg-slate-50 dark:bg-slate-800">Module Name</th>
+                          <th className="py-3 px-3 text-center bg-slate-50 dark:bg-slate-800">Create</th>
+                          <th className="py-3 px-3 text-center bg-slate-50 dark:bg-slate-800">Read / View</th>
+                          <th className="py-3 px-3 text-center bg-slate-50 dark:bg-slate-800">Update / Edit</th>
+                          <th className="py-3 px-3 text-center bg-slate-50 dark:bg-slate-800">Delete</th>
+                          <th className="py-3 px-4 text-right bg-slate-50 dark:bg-slate-800">Quick Select</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white dark:bg-slate-900">
+                        {filteredModules.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="py-8 text-center text-xs text-slate-400">
+                              No modules match "{searchTerm}"
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                        ) : (
+                          filteredModules.map(m => {
+                            const key = m.id.toLowerCase();
+                            const p = editedPermissions[key] || { canCreate: false, canRead: false, canUpdate: false, canDelete: false };
+                            const isAllActive = p.canCreate && p.canRead && p.canUpdate && p.canDelete;
+
+                            return (
+                              <tr key={m.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                                <td className="py-3.5 px-4 font-medium text-slate-800 dark:text-slate-200">
+                                  {m.label || m.name || m.id}
+                                </td>
+
+                                {/* Create Checkbox */}
+                                <td className="py-3.5 px-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(p.canCreate)}
+                                    onChange={() => handleTogglePermission(m.id, 'canCreate')}
+                                    className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
+                                  />
+                                </td>
+
+                                {/* Read Checkbox */}
+                                <td className="py-3.5 px-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(p.canRead)}
+                                    onChange={() => handleTogglePermission(m.id, 'canRead')}
+                                    className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
+                                  />
+                                </td>
+
+                                {/* Update Checkbox */}
+                                <td className="py-3.5 px-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(p.canUpdate)}
+                                    onChange={() => handleTogglePermission(m.id, 'canUpdate')}
+                                    className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
+                                  />
+                                </td>
+
+                                {/* Delete Checkbox */}
+                                <td className="py-3.5 px-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(p.canDelete)}
+                                    onChange={() => handleTogglePermission(m.id, 'canDelete')}
+                                    className="w-4 h-4 text-primary-600 rounded border-slate-300 dark:border-slate-700 focus:ring-primary-500 cursor-pointer"
+                                  />
+                                </td>
+
+                                {/* Quick Select Buttons */}
+                                <td className="py-3.5 px-4 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickSelectRow(m.id, !isAllActive)}
+                                    className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors ${
+                                      isAllActive
+                                        ? 'bg-primary-100 dark:bg-primary-950 text-primary-700 dark:text-primary-300 hover:bg-primary-200'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                                  >
+                                    {isAllActive ? 'Clear' : 'Select All'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </>
             ) : (
@@ -629,18 +714,46 @@ export default function RolesPermissions() {
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">
                     Assign Module CRUD Permissions *
                   </label>
-                  <span className="text-xs text-slate-400">At least one permission required</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = {};
+                        modules.forEach(m => {
+                          updated[m.id.toLowerCase()] = { canCreate: true, canRead: true, canUpdate: true, canDelete: true };
+                        });
+                        setCreateRoleData(prev => ({ ...prev, permissions: updated }));
+                      }}
+                      className="text-[11px] font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                    >
+                      Grant All
+                    </button>
+                    <span className="text-slate-300 dark:text-slate-700">|</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = {};
+                        modules.forEach(m => {
+                          updated[m.id.toLowerCase()] = { canCreate: false, canRead: false, canUpdate: false, canDelete: false };
+                        });
+                        setCreateRoleData(prev => ({ ...prev, permissions: updated }));
+                      }}
+                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                    >
+                      Clear All
+                    </button>
+                  </div>
                 </div>
 
-                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0">
-                      <tr className="text-slate-500 font-bold uppercase">
-                        <th className="py-2.5 px-3">Module</th>
-                        <th className="py-2.5 px-2 text-center">Create</th>
-                        <th className="py-2.5 px-2 text-center">Read</th>
-                        <th className="py-2.5 px-2 text-center">Update</th>
-                        <th className="py-2.5 px-2 text-center">Delete</th>
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden max-h-72 overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 z-10 shadow-sm border-b border-slate-200 dark:border-slate-700">
+                      <tr className="text-slate-500 dark:text-slate-400 font-bold uppercase">
+                        <th className="py-2.5 px-3 bg-slate-50 dark:bg-slate-800">Module</th>
+                        <th className="py-2.5 px-2 text-center bg-slate-50 dark:bg-slate-800">Create</th>
+                        <th className="py-2.5 px-2 text-center bg-slate-50 dark:bg-slate-800">Read</th>
+                        <th className="py-2.5 px-2 text-center bg-slate-50 dark:bg-slate-800">Update</th>
+                        <th className="py-2.5 px-2 text-center bg-slate-50 dark:bg-slate-800">Delete</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
