@@ -35,6 +35,12 @@ export default function LoginPage() {
         navigate('/parent'); 
         break;
       case 'admin':
+        if (userProfile && (userProfile.academicSetupCompleted === false || userProfile.setupCompleted === false)) {
+          navigate('/admin/setup');
+        } else {
+          navigate('/admin');
+        }
+        break;
       case 'staff':
       case 'teacher':
       default: 

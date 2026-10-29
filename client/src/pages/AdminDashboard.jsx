@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { getSchool, subscribeToSubCollection } from '../firebase/firestore';
 import TopNavbar from '../components/TopNavbar';
+import { api } from '../services/api';
 import toast from 'react-hot-toast';
 import useSchoolBranding from '../hooks/useSchoolBranding';
 import { useNotifications } from '../context/NotificationContext';
@@ -58,7 +59,7 @@ export const allNavItems = [
 ];
 
 export default function AdminDashboard() {
-  const { userProfile } = useAuth();
+  const { userProfile, updateProfileData } = useAuth();
   const { permissions, canRead } = usePermissions();
   const { unreadCounts } = useNotifications();
   const navigate = useNavigate();
@@ -91,6 +92,13 @@ export default function AdminDashboard() {
             }
             if (status === 'SUSPENDED') {
               navigate('/admin/suspended');
+              return;
+            }
+
+            // Force admin into Academic Setup if incomplete
+            const isCompleted = Boolean(data.academicSetupCompleted ?? data.setupCompleted ?? userProfile.academicSetupCompleted ?? userProfile.setupCompleted);
+            if (!isCompleted && userProfile.role?.toLowerCase() === 'admin' && (location.pathname === '/admin' || location.pathname === '/admin/')) {
+              navigate('/admin/setup');
               return;
             }
 
@@ -416,25 +424,48 @@ export default function AdminDashboard() {
         
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
-            {userProfile?.role?.toLowerCase() === 'admin' && userProfile?.setupCompleted === false && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-coral-light/60 dark:bg-darkCard border border-coral/30 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in-up">
+            {userProfile?.role?.toLowerCase() === 'admin' && isSetupLocked && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-orange-500/10 dark:bg-slate-900 border border-orange-500/30 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in-up">
                 <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 bg-coral text-white rounded-xl shrink-0 shadow-md shadow-coral-glow">
+                  <div className="p-2.5 bg-orange-500 text-white rounded-xl shrink-0 shadow-md shadow-orange-500/20">
                     <Settings size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-charcoal dark:text-cream">Academic Setup Incomplete</h3>
-                    <p className="text-xs text-grayText dark:text-coral-light mt-0.5">
-                      Configure your Academic Year, Classes, and Subjects in Environment Setup to unlock student admissions and staff assignments.
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-orange-500 text-white rounded-md">Step 2 Mandatory</span>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Academic Setup Incomplete</h3>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                      Configure your academic environment to unlock Roles & Permissions, Staff Directory, and Student Directory.
                     </p>
                   </div>
                 </div>
-                <NavLink
-                  to="/admin/setup"
-                  className="px-4 py-2 bg-coral hover:bg-coral-dark text-white rounded-xl font-bold text-xs shadow-md shadow-coral-glow transition-all whitespace-nowrap"
-                >
-                  Complete Setup →
-                </NavLink>
+                <div className="flex items-center gap-2 shrink-0">
+                  <NavLink
+                    to="/admin/setup"
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
+                  >
+                    Go to Setup
+                  </NavLink>
+                  <button
+                    onClick={async () => {
+                      const toastId = toast.loading('Finalizing Academic Setup...');
+                      try {
+                        await api.post('/academic/complete-setup');
+                        if (typeof updateProfileData === 'function') {
+                          await updateProfileData();
+                        }
+                        toast.success('Academic Setup completed! Roles, Staff, and Students are unlocked.', { id: toastId });
+                        navigate('/admin/roles');
+                      } catch (e) {
+                        toast.error(e.message || 'Failed to complete setup', { id: toastId });
+                      }
+                    }}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs shadow-md shadow-orange-500/25 transition-all whitespace-nowrap"
+                  >
+                    Complete Setup & Unlock →
+                  </button>
+                </div>
               </div>
             )}
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSchool, updateSchool, subscribeToFeeCollectionPeriods, createFeeCollectionPeriod, updateFeeCollectionPeriod, deleteFeeCollectionPeriod, getAttendanceSettings, saveAttendanceSettings, subscribeToLeaveApprovalRules, createLeaveApprovalRule, updateLeaveApprovalRule, deleteLeaveApprovalRule } from '../../firebase/firestore';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
@@ -8,7 +10,10 @@ import toast from 'react-hot-toast';
 import ConfirmModal from '../../components/ConfirmModal';
 
 export default function EnvironmentSetup() {
-  const { userProfile, updateProfileData } = useAuth(); // Assume we can refresh auth context
+  const { userProfile, updateProfileData } = useAuth();
+  const navigate = useNavigate();
+  const [completingSetup, setCompletingSetup] = useState(false);
+  const isSetupCompleted = Boolean(userProfile?.academicSetupCompleted ?? userProfile?.setupCompleted);
   const schoolId = userProfile?.schoolId;
 
   const [loading, setLoading] = useState(true);
@@ -350,6 +355,38 @@ export default function EnvironmentSetup() {
     }
   };
 
+  const handleCompleteAcademicSetup = async () => {
+    setCompletingSetup(true);
+    const toastId = toast.loading('Finalizing Academic Setup and unlocking modules...');
+    try {
+      // 1. Update Firestore
+      await updateSchool(schoolId, {
+        ...formData,
+        customData,
+        setupCompleted: true,
+        academicSetupCompleted: true
+      });
+
+      // 2. Update PostgreSQL backend via /api/academic/complete-setup
+      await api.post('/academic/complete-setup');
+
+      // 3. Refresh user profile in context so setupCompleted = true
+      if (typeof updateProfileData === 'function') {
+        await updateProfileData();
+      }
+
+      toast.success('Academic Setup completed! Roles & Permissions, Staff, and Student directories are now unlocked.', { id: toastId });
+      
+      // 4. Navigate directly to Step 3: Roles & Permissions
+      navigate('/admin/roles');
+    } catch (err) {
+      console.error('Error completing academic setup:', err);
+      toast.error(err.message || 'Failed to complete academic setup', { id: toastId });
+    } finally {
+      setCompletingSetup(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSuccessMsg('');
@@ -409,20 +446,67 @@ export default function EnvironmentSetup() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto pb-24">
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Environment Setup</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Environment Setup</h1>
+            {isSetupCompleted ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 size={14} /> Setup Completed
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                <AlertTriangle size={14} /> Step 2: Setup Required
+              </span>
+            )}
+          </div>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Configure your school's branding, contact info, and academic settings.</p>
         </div>
-        <button 
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-sm flex items-center gap-2 disabled:opacity-50 transition-colors"
-        >
-          {saving ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div> : <Save size={18} />}
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm flex items-center gap-2 disabled:opacity-50 transition-colors"
+          >
+            {saving ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 dark:border-slate-200 border-t-transparent"></div> : <Save size={16} />}
+            {saving ? 'Saving...' : 'Save Draft'}
+          </button>
+          <button 
+            onClick={handleCompleteAcademicSetup}
+            disabled={completingSetup}
+            className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm shadow-md shadow-orange-500/25 flex items-center gap-2 disabled:opacity-50 transition-all"
+          >
+            {completingSetup ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div> : <CheckCircle2 size={16} />}
+            {completingSetup ? 'Completing...' : isSetupCompleted ? 'Re-verify Academic Setup' : 'Complete Setup & Unlock Modules →'}
+          </button>
+        </div>
       </div>
+
+      {!isSetupCompleted && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/5 border border-orange-500/30 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fade-in-up">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-orange-500 text-white rounded-2xl shadow-md shadow-orange-500/30 shrink-0">
+              <Settings size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-orange-500 text-white rounded-md">Step 2 Mandatory</span>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Academic Setup Gateway</h3>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xl">
+                Roles & Permissions, Staff Directory, and Student Directory are currently locked. Click <strong>"Complete Setup & Unlock Modules"</strong> to finalize your configuration and unlock all downstream school modules.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleCompleteAcademicSetup}
+            disabled={completingSetup}
+            className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-orange-500/20 flex items-center gap-2 disabled:opacity-50 transition-all whitespace-nowrap shrink-0"
+          >
+            {completingSetup ? 'Unlocking...' : 'Unlock Roles & Modules →'}
+          </button>
+        </div>
+      )}
 
       {successMsg && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center gap-3 animate-fade-in-down">
