@@ -53,6 +53,113 @@ export default function StaffAssignment() {
 
   const [confirmDeleteState, setConfirmDeleteState] = useState({ isOpen: false, id: null, name: '' });
   const [allRoles, setAllRoles] = useState([]);
+  const [backendStaffMap, setBackendStaffMap] = useState({});
+
+  // Staff Invite Modal State
+  const [inviteModal, setInviteModal] = useState({
+    isOpen: false,
+    staffId: null,
+    staffName: '',
+    staffEmail: '',
+    staffEmpId: '',
+    inviteUrl: '',
+    expiresAt: null,
+    status: 'NONE',
+    loading: false,
+    emailSending: false
+  });
+
+  const loadBackendStaff = async () => {
+    try {
+      const bStaff = await api.get('/staff');
+      if (Array.isArray(bStaff)) {
+        const map = {};
+        bStaff.forEach(s => {
+          if (s.id) map[s.id] = s;
+          if (s.email) map[s.email.toLowerCase()] = s;
+          if (s.employeeId) map[s.employeeId] = s;
+        });
+        setBackendStaffMap(map);
+      }
+    } catch (e) {
+      console.warn('Could not fetch backend staff:', e);
+    }
+  };
+
+  const openInviteModal = async (member) => {
+    const backendUser = (member.userId && backendStaffMap[member.userId]) || (member.email && backendStaffMap[member.email?.toLowerCase()]) || (member.staffId && backendStaffMap[member.staffId]);
+    const staffId = backendUser?.id || member.userId || member.id;
+    const staffName = member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'Staff Member';
+    const staffEmail = member.email || '';
+    const staffEmpId = member.staffId || member.employeeId || '';
+
+    setInviteModal({
+      isOpen: true,
+      staffId,
+      staffName,
+      staffEmail,
+      staffEmpId,
+      inviteUrl: '',
+      expiresAt: null,
+      status: 'LOADING',
+      loading: true,
+      emailSending: false
+    });
+
+    try {
+      // Generate or retrieve active invite URL
+      const genRes = await api.post(`/staff/${staffId}/invite`);
+      setInviteModal(prev => ({
+        ...prev,
+        inviteUrl: genRes.inviteUrl,
+        expiresAt: genRes.expiresAt,
+        status: 'ACTIVE',
+        loading: false
+      }));
+    } catch (err) {
+      console.error('Error generating invite:', err);
+      toast.error(err.message || 'Failed to generate invite link');
+      setInviteModal(prev => ({ ...prev, loading: false, status: 'ERROR' }));
+    }
+  };
+
+  const handleRegenerateInvite = async () => {
+    if (!inviteModal.staffId) return;
+    setInviteModal(prev => ({ ...prev, loading: true }));
+    try {
+      const res = await api.post(`/staff/${inviteModal.staffId}/invite`);
+      setInviteModal(prev => ({
+        ...prev,
+        inviteUrl: res.inviteUrl,
+        expiresAt: res.expiresAt,
+        status: 'ACTIVE',
+        loading: false
+      }));
+      toast.success('Registration invite link regenerated!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to regenerate invite link');
+      setInviteModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleSendInviteEmail = async () => {
+    if (!inviteModal.staffId) return;
+    setInviteModal(prev => ({ ...prev, emailSending: true }));
+    try {
+      await api.post(`/staff/${inviteModal.staffId}/invite/send-email`);
+      toast.success(`Invite email sent to ${inviteModal.staffEmail}`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to send invite email');
+    } finally {
+      setInviteModal(prev => ({ ...prev, emailSending: false }));
+    }
+  };
+
+  const handleCopyInviteLink = () => {
+    if (!inviteModal.inviteUrl) return;
+    navigator.clipboard.writeText(inviteModal.inviteUrl);
+    toast.success('Link copied to clipboard!');
+  };
 
   // Export State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -107,7 +214,7 @@ export default function StaffAssignment() {
     roles: [],
     assignedClassId: '',
     staff_type: 'teaching',
-    status: 'Active',
+    status: 'Invited',
     
     // Educational Information
     highestQualification: '',
@@ -239,6 +346,8 @@ export default function StaffAssignment() {
       setRolesList([]);
       setAllRoles([]);
     });
+
+    loadBackendStaff();
 
     return () => {
       if (teachersUnsub) teachersUnsub();
@@ -630,14 +739,6 @@ export default function StaffAssignment() {
 
     if (isRegisterPage) {
       if (!newStaff.username?.trim()) errors.username = "Username is required";
-      if (!newStaff.password) {
-        errors.password = "Password is required";
-      } else {
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordRegex.test(newStaff.password)) {
-          errors.password = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character";
-        }
-      }
     }
 
     setAddStaffErrors(errors);
@@ -731,7 +832,6 @@ export default function StaffAssignment() {
         const apiRes = await api.post('/staff', {
           name: `${newStaff.firstName} ${newStaff.lastName || ''}`.trim(),
           email: newStaff.email,
-          password: newStaff.password || 'Staff@123',
           phone: newStaff.mobileNumber || undefined,
           employeeId: newStaff.staffId || undefined,
           roleId: newStaff.roleId
@@ -748,6 +848,7 @@ export default function StaffAssignment() {
       const staffDoc = {
         ...newStaff,
         userId: backendStaffUser?.id || undefined,
+        status: 'Invited',
         roleId: newStaff.roleId,
         ...uploadedUrls,
         customData: uploadedCustomData || {},
@@ -770,6 +871,17 @@ export default function StaffAssignment() {
 
       toast.success("Staff member added successfully!", { id: progressToastId });
       setAddStaffModalOpen(false);
+
+      // Refresh backend staff map and open invite link modal for newly added staff
+      loadBackendStaff();
+      if (backendStaffUser?.id) {
+        openInviteModal({
+          userId: backendStaffUser.id,
+          name: `${newStaff.firstName} ${newStaff.lastName || ''}`.trim(),
+          email: newStaff.email,
+          staffId: newStaff.staffId
+        });
+      }
       setNewStaff(initialStaffFormState);
       setAddStaffFiles({
         photo: null,
@@ -1088,6 +1200,7 @@ export default function StaffAssignment() {
               <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider font-semibold">
                 <th className="p-4 pl-6">Staff Name</th>
                 <th className="p-4">Contact</th>
+                <th className="p-4">Status</th>
                 <th className="p-4">Class Assignments</th>
                 <th className="p-4 pr-6 text-right">Actions</th>
               </tr>
@@ -1095,7 +1208,7 @@ export default function StaffAssignment() {
             <tbody className="divide-y divide-slate-100 text-sm">
               {paginatedStaff.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="p-12 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan="5" className="p-12 text-center text-slate-500 dark:text-slate-400">
                     <ShieldCheck size={48} className="mx-auto mb-4 text-slate-300" />
                     <p className="text-lg font-medium text-slate-900 dark:text-white mb-1">No staff members found</p>
                     <p>Generate a teacher invite link to start onboarding your faculty.</p>
@@ -1105,6 +1218,8 @@ export default function StaffAssignment() {
                 paginatedStaff.map((member) => {
                   const name = member.name || `${member.firstName} ${member.lastName}`;
                   const isAssigned = !!member.assignedClassId;
+                  const backendUser = (member.userId && backendStaffMap[member.userId]) || (member.email && backendStaffMap[member.email?.toLowerCase()]) || (member.staffId && backendStaffMap[member.staffId]);
+                  const staffStatus = (backendUser?.status || member.status || 'INVITED').toUpperCase();
 
                   return (
                     <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
@@ -1128,19 +1243,34 @@ export default function StaffAssignment() {
                         </div>
                       </td>
                       <td className="p-4">
+                        {staffStatus === 'INVITED' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            Invited
+                          </span>
+                        ) : staffStatus === 'INACTIVE' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            Inactive
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            Active
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4">
                         <div className="flex flex-wrap gap-1.5 max-w-[280px]">
                           {isAssigned && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-primary-200/60 bg-primary-50/50 text-primary-700 text-[11px] font-semibold uppercase tracking-wide">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded border border-primary-200/60 bg-primary-50/50 text-primary-700 text-[11px] font-semibold uppercase tracking-wide">
                               {getClassName(member.assignedClassId)} (Class)
                             </span>
                           )}
                           {member.subjectClassIds?.map(id => (
-                            <span key={id} className="inline-flex items-center px-2 py-0.5 rounded border border-indigo-200/60 bg-indigo-50/50 text-indigo-700 text-[11px] font-semibold uppercase tracking-wide">
+                            <span key={id} className="inline-flex items-center px-2.5 py-0.5 rounded border border-indigo-200/60 bg-indigo-50/50 text-indigo-700 text-[11px] font-semibold uppercase tracking-wide">
                               {getClassName(id)} (Subj)
                             </span>
                           ))}
                           {!isAssigned && (!member.subjectClassIds || member.subjectClassIds.length === 0) && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-slate-200/60 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[11px] font-semibold uppercase tracking-wide">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded border border-slate-200/60 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-[11px] font-semibold uppercase tracking-wide">
                               Unassigned
                             </span>
                           )}
@@ -1148,15 +1278,19 @@ export default function StaffAssignment() {
                       </td>
                       <td className="p-4 pr-6 text-right">
                         <div className="flex justify-end gap-2">
-                          {!member.userId && (
+                          {staffStatus === 'INVITED' ? (
                             <button
-                              onClick={() => {
-                                const inviteUrl = `${window.location.origin}/register/teacher/${schoolId}?id=${member.id}&email=${encodeURIComponent(member.email || '')}&empId=${encodeURIComponent(member.staffId || member.employeeId || '')}`;
-                                navigator.clipboard.writeText(inviteUrl);
-                                toast.success("Registration link copied!");
-                              }}
-                              className="p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              title="Copy Invite Link"
+                              onClick={() => openInviteModal(member)}
+                              className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Registration Invite Link"
+                            >
+                              <LinkIcon size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed rounded-lg"
+                              title="Already registered"
                             >
                               <LinkIcon size={18} />
                             </button>
@@ -2861,6 +2995,133 @@ export default function StaffAssignment() {
                 <Download size={18} />
                 Generate Excel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STAFF INVITE MODAL */}
+      {inviteModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-scale-up">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-primary-50 dark:bg-primary-950/40 text-primary-600 rounded-xl">
+                  <LinkIcon size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">Staff Registration Link</h3>
+                  <p className="text-xs text-slate-400">Share with staff to complete password setup</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setInviteModal(prev => ({ ...prev, isOpen: false }))}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5">
+              {/* Staff Recipient Summary */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-sm text-slate-900 dark:text-white">{inviteModal.staffName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{inviteModal.staffEmail}</p>
+                </div>
+                {inviteModal.staffEmpId && (
+                  <span className="px-2.5 py-1 text-xs font-semibold bg-primary-50 dark:bg-primary-950/50 text-primary-700 dark:text-primary-300 rounded-lg border border-primary-200 dark:border-primary-800">
+                    ID: {inviteModal.staffEmpId}
+                  </span>
+                )}
+              </div>
+
+              {inviteModal.loading ? (
+                <div className="py-8 flex flex-col items-center justify-center space-y-2">
+                  <div className="w-8 h-8 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                  <span className="text-xs text-slate-400">Processing registration link...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Link Input & Copy */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        Secure Registration URL
+                      </label>
+                      {inviteModal.status === 'EXPIRED' ? (
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300 border border-red-200">
+                          Expired
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200">
+                          Active Link
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={inviteModal.inviteUrl}
+                        className="flex-1 px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-slate-700 dark:text-slate-300 focus:outline-none select-all"
+                      />
+                      <button
+                        onClick={handleCopyInviteLink}
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                      >
+                        <CopyIcon size={14} /> Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expiry & Status Meta */}
+                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Single-use link, valid for 48 hours</span>
+                    </div>
+                    {inviteModal.expiresAt && (
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Expires: {new Date(inviteModal.expiresAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="px-6 py-4 bg-slate-50/50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleRegenerateInvite}
+                disabled={inviteModal.loading}
+                className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+              >
+                Regenerate Link (Revokes Old)
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSendInviteEmail}
+                  disabled={inviteModal.loading || inviteModal.emailSending || !inviteModal.inviteUrl}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Mail size={14} />
+                  {inviteModal.emailSending ? 'Sending...' : 'Send by Email'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInviteModal(prev => ({ ...prev, isOpen: false }))}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 rounded-xl transition-all shadow-sm"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>

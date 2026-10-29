@@ -102,6 +102,22 @@ class EmailService {
         return { subject, html: STANDARD_EMAIL_WRAPPER(body, schoolName) };
       }
 
+      case 'STAFF_INVITE': {
+        const subject = `Invitation to Join ${schoolName} Staff Portal`;
+        const body = `
+          <h2>Welcome, ${data.userName || 'Staff Member'}!</h2>
+          <p>An administrator at <strong>${schoolName}</strong> has invited you to set up your staff portal account.</p>
+          <p><strong>Employee ID:</strong> ${data.employeeId || 'N/A'}</p>
+          <p><strong>Assigned Role:</strong> ${data.roleName || 'Staff'}</p>
+          <p>Click the secure link below to set your password and complete your registration:</p>
+          <p style="text-align: center;">
+            <a href="${data.inviteUrl || '#'}" class="btn">Complete Staff Registration</a>
+          </p>
+          <p style="color: #64748b; font-size: 13px;">This registration link will expire in 48 hours and can only be used once. If you have questions, please reach out to your school administrator.</p>
+        `;
+        return { subject, html: STANDARD_EMAIL_WRAPPER(body, schoolName) };
+      }
+
       case 'APPROVAL': {
         const subject = 'Your School Account is Approved!';
         const body = `

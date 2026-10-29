@@ -25,6 +25,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const SchoolRegistration = lazy(() => import('./pages/SchoolRegistration'));
 const PublicLeadForm = lazy(() => import('./pages/PublicLeadForm'));
 const PublicAdmissionForm = lazy(() => import('./pages/PublicAdmissionForm'));
+const StaffRegister = lazy(() => import('./pages/StaffRegister'));
 const AccountSuspendedScreen = lazy(() => import('./pages/AccountSuspendedScreen'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
@@ -173,6 +174,7 @@ function App() {
             <Route path="/signup" element={<SchoolRegistration />} />
             <Route path="/sign-up" element={<SchoolRegistration />} />
             <Route path="/register/teacher/:schoolId" element={<TeacherRegistration />} />
+            <Route path="/staff/register" element={<StaffRegister />} />
             <Route path="/admission/:schoolId" element={<PublicAdmissionForm />} />
             <Route path="/admission/form/:schoolId" element={<PublicAdmissionForm />} />
             <Route path="/apply/:schoolId" element={<PublicAdmissionForm />} />
