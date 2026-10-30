@@ -6,7 +6,7 @@ import { getSubCollection, updateSubDocument, addSubDocument, subscribeToSubColl
 import { doc, getDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { uploadFileToCloudinaryOrFirebase, uploadCustomDataFiles } from '../../utils/cloudinary';
-import { LuSearch as Search, LuShieldCheck as ShieldCheck, LuMail as Mail, LuUsers as Users, LuCircleCheck as CheckCircle2, LuX as X, LuCloudUpload as UploadCloud, LuFileText as FileText, LuExternalLink as ExternalLink, LuDownload as Download, LuFileSpreadsheet as FileSpreadsheet, LuUserPlus as UserPlus, LuEye as Eye, LuFilter as Filter, LuLink as LinkIcon, LuCopy as CopyIcon, LuTrash2 as Trash, LuFileDown as FileDown } from 'react-icons/lu';
+import { LuSearch as Search, LuShieldCheck as ShieldCheck, LuMail as Mail, LuUsers as Users, LuCircleCheck as CheckCircle2, LuX as X, LuCloudUpload as UploadCloud, LuFileText as FileText, LuExternalLink as ExternalLink, LuDownload as Download, LuFileSpreadsheet as FileSpreadsheet, LuUserPlus as UserPlus, LuEye as Eye, LuFilter as Filter, LuLink as LinkIcon, LuCopy as CopyIcon, LuTrash2 as Trash, LuFileDown as FileDown, LuGraduationCap as GraduationCap, LuBriefcase as Briefcase, LuBuilding2 as Building2, LuCreditCard as CreditCard, LuIdCard as IdCard, LuUser as User, LuPhone as Phone, LuCalendar as Calendar, LuMapPin as MapPin, LuBadgeCheck as BadgeCheck, LuInfo as Info, LuCheck as Check, LuFileUp as FileUp, LuCircleAlert as CircleAlert } from 'react-icons/lu';
 import { TableSkeleton } from '../../components/Skeleton';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -18,6 +18,26 @@ import FilePreviewModal from '../../components/FilePreviewModal';
 import usePermissions from '../../hooks/usePermissions';
 import { sortClassesAscending } from '../../utils/classSorting';
 import { normalizeGender, isMale, isFemale } from '../../utils/genderUtils';
+
+const STAFF_TABS = [
+  { id: 'Personal', label: 'Personal', icon: User },
+  { id: 'Educational', label: 'Educational', icon: GraduationCap },
+  { id: 'Professional', label: 'Professional', icon: Briefcase },
+  { id: 'Government & Identity', label: 'Government & Identity', icon: IdCard },
+  { id: 'Employment', label: 'Employment', icon: Building2 },
+  { id: 'Banking', label: 'Banking', icon: CreditCard },
+  { id: 'Uploads', label: 'Uploads', icon: UploadCloud }
+];
+
+const TAB_ERROR_FIELDS = {
+  Personal: ['staffId', 'firstName', 'lastName', 'email', 'mobileNumber', 'emergencyContact', 'roleId'],
+  Educational: ['yearOfPassing'],
+  Professional: ['previousExperience'],
+  'Government & Identity': ['aadharNumber', 'panNumber'],
+  Employment: [],
+  Banking: ['bankAccountNumber', 'ifscCode'],
+  Uploads: []
+};
 
 export default function StaffAssignment() {
   const { userProfile } = useAuth();
@@ -1023,7 +1043,7 @@ export default function StaffAssignment() {
                 setAddStaffActiveTab('Personal');
                 setAddStaffModalOpen(true);
               }}
-              className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-semibold hover:bg-indigo-100 shadow-sm flex items-center gap-2 transition-colors border border-indigo-200"
+              className="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 shadow-sm flex items-center gap-2 transition-colors"
             >
               <UserPlus size={18} /> Add Staff
             </button>
@@ -1571,14 +1591,29 @@ export default function StaffAssignment() {
 
       {/* Add Staff Modal */}
       {addStaffModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800 shrink-0">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <UserPlus className="text-indigo-600" />
-                Add Staff Member
-              </h2>
-              <button onClick={() => setAddStaffModalOpen(false)} className="p-2 text-slate-400 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition-colors">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]">
+            {/* Modal Header */}
+            <div className="px-6 py-5 sm:px-8 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-950/50 border border-primary-100 dark:border-primary-800/60 flex items-center justify-center text-primary-600 dark:text-primary-400 shrink-0 shadow-sm">
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                    Add Staff Member
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    Enter staff information to create a new staff profile.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddStaffModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors duration-150"
+                title="Close modal"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -1595,220 +1630,358 @@ export default function StaffAssignment() {
             `}} />
 
             {/* Tabbed Navigation */}
-            <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-900 shrink-0 hide-scrollbar scroll-smooth">
-              <div className="flex w-full justify-start items-center">
-                {['Personal', 'Educational', 'Professional', 'Government & Identity', 'Employment', 'Banking', 'Uploads'].map(tab => {
-                  const isActive = addStaffActiveTab === tab;
+            <div className="flex border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 px-4 sm:px-6 shrink-0 overflow-x-auto hide-scrollbar scroll-smooth">
+              <div className="flex items-center gap-1.5 py-2.5 min-w-max">
+                {STAFF_TABS.map(tab => {
+                  const isActive = addStaffActiveTab === tab.id;
+                  const TabIcon = tab.icon;
+                  const tabErrorCount = TAB_ERROR_FIELDS[tab.id]?.filter(f => !!addStaffErrors[f]).length || 0;
                   return (
                     <button
-                      key={tab}
+                      key={tab.id}
                       type="button"
                       ref={isActive ? activeTabRef : null}
-                      onClick={() => setAddStaffActiveTab(tab)}
+                      onClick={() => setAddStaffActiveTab(tab.id)}
                       aria-selected={isActive}
                       role="tab"
-                      className={`relative py-4 px-6 text-xs font-bold whitespace-nowrap transition-all duration-200 flex-shrink-0 focus:outline-none focus:text-indigo-600 focus:bg-indigo-50/20 ${
+                      className={`relative px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-2 select-none ${
                         isActive
-                          ? 'text-indigo-600 font-extrabold'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          ? 'bg-white dark:bg-slate-800 text-primary-600 dark:text-primary-400 shadow-sm border border-primary-200/80 dark:border-primary-900/60 font-bold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50/50 dark:hover:bg-slate-800/50 border border-transparent'
                       }`}
                     >
-                      {tab}
-                      {isActive && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full animate-fade-in" />
+                      <TabIcon size={14} className={isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400 dark:text-slate-500'} />
+                      <span>{tab.label}</span>
+                      {tabErrorCount > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title={`${tabErrorCount} error(s)`} />
                       )}
                     </button>
                   );
                 })}
               </div>
-              </div>
-              
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                <CustomFieldsRenderer 
-                  moduleKey="staff"
-                  customData={newStaff.customData}
-                  onChange={(fieldId, value) => {
-                    setNewStaff(prev => ({
-                      ...prev,
-                      customData: {
-                        ...(prev.customData || {}),
-                        [fieldId]: value
-                      }
-                    }));
-                  }}
-                />
-              </div>
+            </div>
 
-            <div className="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-6">
+            {/* Modal Body / Tab Content */}
+            <div className="p-6 sm:p-8 flex-1 overflow-y-auto custom-scrollbar space-y-6">
               {/* Tab Content: Personal */}
               {addStaffActiveTab === 'Personal' && (
-                <div className="space-y-4 animate-fade-in">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Staff ID *</label>
-                      <input
-                        type="text"
-                        value={newStaff.staffId}
-                        onChange={(e) => setNewStaff({ ...newStaff, staffId: e.target.value })}
-                        placeholder="e.g. ST1001"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.staffId ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.staffId && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.staffId}</span>}
+                <div className="space-y-6 animate-fade-in">
+                  {/* Section 1: Basic Identity */}
+                  <div className="space-y-3.5">
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Basic Identity
+                      </h3>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">First Name *</label>
-                      <input
-                        type="text"
-                        value={newStaff.firstName}
-                        onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
-                        placeholder="e.g. John"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.firstName && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.firstName}</span>}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Last Name *</label>
-                      <input
-                        type="text"
-                        value={newStaff.lastName}
-                        onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
-                        placeholder="e.g. Doe"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.lastName && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.lastName}</span>}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Email Address *</label>
-                      <input
-                        type="email"
-                        value={newStaff.email}
-                        onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                        placeholder="john.doe@example.com"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.email && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.email}</span>}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Mobile Number</label>
-                      <input
-                        type="text"
-                        value={newStaff.mobileNumber}
-                        onChange={(e) => setNewStaff({ ...newStaff, mobileNumber: e.target.value })}
-                        placeholder="e.g. 9876543210"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.mobileNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.mobileNumber && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.mobileNumber}</span>}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Date of Birth</label>
-                      <input
-                        type="date"
-                        value={newStaff.dob}
-                        onChange={(e) => setNewStaff({ ...newStaff, dob: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Gender</label>
-                      <select
-                        value={normalizeGender(newStaff.gender, 'Male')}
-                        onChange={(e) => setNewStaff({ ...newStaff, gender: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      >
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Nationality</label>
-                      <input
-                        type="text"
-                        value={newStaff.nationality}
-                        onChange={(e) => setNewStaff({ ...newStaff, nationality: e.target.value })}
-                        placeholder="e.g. Indian"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Marital Status</label>
-                      <select
-                        value={newStaff.maritalStatus}
-                        onChange={(e) => setNewStaff({ ...newStaff, maritalStatus: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      >
-                        <option value="Single">Single</option>
-                        <option value="Married">Married</option>
-                        <option value="Divorced">Divorced</option>
-                        <option value="Widowed">Widowed</option>
-                      </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Staff ID <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.staffId}
+                          onChange={(e) => setNewStaff({ ...newStaff, staffId: e.target.value })}
+                          placeholder="e.g. ST1001"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                            addStaffErrors.staffId
+                              ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                          }`}
+                        />
+                        {addStaffErrors.staffId && (
+                          <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                            <CircleAlert size={12} className="shrink-0" />
+                            <span>{addStaffErrors.staffId}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          First Name <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.firstName}
+                          onChange={(e) => setNewStaff({ ...newStaff, firstName: e.target.value })}
+                          placeholder="e.g. John"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                            addStaffErrors.firstName
+                              ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                          }`}
+                        />
+                        {addStaffErrors.firstName && (
+                          <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                            <CircleAlert size={12} className="shrink-0" />
+                            <span>{addStaffErrors.firstName}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Last Name <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.lastName}
+                          onChange={(e) => setNewStaff({ ...newStaff, lastName: e.target.value })}
+                          placeholder="e.g. Doe"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                            addStaffErrors.lastName
+                              ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                          }`}
+                        />
+                        {addStaffErrors.lastName && (
+                          <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                            <CircleAlert size={12} className="shrink-0" />
+                            <span>{addStaffErrors.lastName}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Blood Group</label>
-                      <input
-                        type="text"
-                        value={newStaff.bloodGroup}
-                        onChange={(e) => setNewStaff({ ...newStaff, bloodGroup: e.target.value })}
-                        placeholder="e.g. O+, A-"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
+                  {/* Section 2: Contact Information */}
+                  <div className="space-y-3.5">
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Contact Information
+                      </h3>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Father / Guardian Name</label>
-                      <input
-                        type="text"
-                        value={newStaff.fatherGuardianName}
-                        onChange={(e) => setNewStaff({ ...newStaff, fatherGuardianName: e.target.value })}
-                        placeholder="Father or Guardian Name"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Emergency Contact Details</label>
-                      <input
-                        type="text"
-                        value={newStaff.emergencyContact}
-                        onChange={(e) => setNewStaff({ ...newStaff, emergencyContact: e.target.value })}
-                        placeholder="Emergency Mobile No."
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.emergencyContact ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.emergencyContact && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.emergencyContact}</span>}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Email Address <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          value={newStaff.email}
+                          onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                          placeholder="john.doe@example.com"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                            addStaffErrors.email
+                              ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                          }`}
+                        />
+                        {addStaffErrors.email && (
+                          <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                            <CircleAlert size={12} className="shrink-0" />
+                            <span>{addStaffErrors.email}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Mobile Number
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.mobileNumber}
+                          onChange={(e) => setNewStaff({ ...newStaff, mobileNumber: e.target.value })}
+                          placeholder="e.g. 9876543210"
+                          className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                            addStaffErrors.mobileNumber
+                              ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                          }`}
+                        />
+                        {addStaffErrors.mobileNumber && (
+                          <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                            <CircleAlert size={12} className="shrink-0" />
+                            <span>{addStaffErrors.mobileNumber}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Emergency Contact Details
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.emergencyContact}
+                          onChange={(e) => setNewStaff({ ...newStaff, emergencyContact: e.target.value })}
+                          placeholder="Emergency Mobile No."
+                          className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                            addStaffErrors.emergencyContact
+                              ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                              : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                          }`}
+                        />
+                        {addStaffErrors.emergencyContact && (
+                          <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                            <CircleAlert size={12} className="shrink-0" />
+                            <span>{addStaffErrors.emergencyContact}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="col-span-1 sm:col-span-3">
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assigned Role *</label>
-                      {rolesList.length === 0 ? (
-                        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center space-y-2">
-                          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                            No roles have been created for your school yet.
-                          </p>
-                          <p className="text-xs text-amber-700 dark:text-amber-400">
-                            A new school starts with zero roles. You must create at least one role with module permissions before adding staff members.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAddStaffModalOpen(false);
-                              navigate('/admin/roles');
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow transition-colors"
-                          >
-                            <ShieldCheck size={16} /> Go to Roles & Permissions
-                          </button>
+                  {/* Section 3: Personal & Demographic Details */}
+                  <div className="space-y-3.5">
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Personal & Demographic Details
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Date of Birth
+                        </label>
+                        <input
+                          type="date"
+                          value={newStaff.dob}
+                          onChange={(e) => setNewStaff({ ...newStaff, dob: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Gender
+                        </label>
+                        <select
+                          value={normalizeGender(newStaff.gender, 'Male')}
+                          onChange={(e) => setNewStaff({ ...newStaff, gender: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all cursor-pointer"
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Blood Group
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.bloodGroup}
+                          onChange={(e) => setNewStaff({ ...newStaff, bloodGroup: e.target.value })}
+                          placeholder="e.g. O+, A-"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Nationality
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.nationality}
+                          onChange={(e) => setNewStaff({ ...newStaff, nationality: e.target.value })}
+                          placeholder="e.g. Indian"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Marital Status
+                        </label>
+                        <select
+                          value={newStaff.maritalStatus}
+                          onChange={(e) => setNewStaff({ ...newStaff, maritalStatus: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all cursor-pointer"
+                        >
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                          <option value="Divorced">Divorced</option>
+                          <option value="Widowed">Widowed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Father / Guardian Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.fatherGuardianName}
+                          onChange={(e) => setNewStaff({ ...newStaff, fatherGuardianName: e.target.value })}
+                          placeholder="Father or Guardian Name"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="sm:col-span-1">
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Languages Known
+                        </label>
+                        <input
+                          type="text"
+                          value={newStaff.languagesKnown}
+                          onChange={(e) => setNewStaff({ ...newStaff, languagesKnown: e.target.value })}
+                          placeholder="e.g. English, Hindi, Tamil"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Residential Address
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={newStaff.residentialAddress}
+                          onChange={(e) => setNewStaff({ ...newStaff, residentialAddress: e.target.value })}
+                          placeholder="Full Residential Address"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 4: Role & Work Assignment */}
+                  <div className="space-y-3.5">
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Role & Work Assignment
+                      </h3>
+                    </div>
+
+                    {rolesList.length === 0 ? (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-primary-50/50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+                        <div className="flex items-start gap-3.5">
+                          <div className="w-9 h-9 rounded-xl bg-primary-100 dark:bg-primary-900/60 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <ShieldCheck size={18} />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              No roles have been created for your school yet.
+                            </h4>
+                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
+                              A new school starts with zero roles. You must create at least one role with module permissions before adding staff members.
+                            </p>
+                          </div>
                         </div>
-                      ) : (
-                        <div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddStaffModalOpen(false);
+                            navigate('/admin/roles');
+                          }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all whitespace-nowrap shrink-0 active:scale-95"
+                        >
+                          <ShieldCheck size={15} />
+                          <span>Go to Roles & Permissions</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-3">
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            Assigned Role <span className="text-rose-500 font-bold">*</span>
+                          </label>
                           <select
                             value={newStaff.roleId || ''}
                             onChange={(e) => {
@@ -1824,8 +1997,10 @@ export default function StaffAssignment() {
                                 setAddStaffErrors(prev => ({ ...prev, roleId: undefined }));
                               }
                             }}
-                            className={`w-full px-3 py-2.5 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm cursor-pointer ${
-                              addStaffErrors.roleId ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
+                            className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 transition-all cursor-pointer ${
+                              addStaffErrors.roleId
+                                ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                                : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
                             }`}
                           >
                             <option value="">-- Choose a Role --</option>
@@ -1836,61 +2011,55 @@ export default function StaffAssignment() {
                             ))}
                           </select>
                           {addStaffErrors.roleId && (
-                            <p className="text-xs text-red-500 mt-1">{addStaffErrors.roleId}</p>
+                            <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                              <CircleAlert size={12} className="shrink-0" />
+                              <span>{addStaffErrors.roleId}</span>
+                            </span>
                           )}
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Assign Class (Optional)</label>
-                      <select
-                        value={newStaff.assignedClassId}
-                        onChange={(e) => setNewStaff({ ...newStaff, assignedClassId: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      >
-                        <option value="">-- Unassigned --</option>
-                        {classes.map(c => (
-                          <option key={c.id} value={c.id}>{c.name} - Section {c.section}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Staff Type *</label>
-                      <select
-                        value={newStaff.staff_type}
-                        onChange={(e) => setNewStaff({ ...newStaff, staff_type: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      >
-                        <option value="teaching">Teaching Staff</option>
-                        <option value="non-teaching">Non-Teaching Staff</option>
-                      </select>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Staff Type <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <select
+                          value={newStaff.staff_type}
+                          onChange={(e) => setNewStaff({ ...newStaff, staff_type: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all cursor-pointer"
+                        >
+                          <option value="teaching">Teaching Staff</option>
+                          <option value="non-teaching">Non-Teaching Staff</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Assign Class (Optional)
+                        </label>
+                        <select
+                          value={newStaff.assignedClassId}
+                          onChange={(e) => setNewStaff({ ...newStaff, assignedClassId: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all cursor-pointer"
+                        >
+                          <option value="">-- Unassigned --</option>
+                          {classes.map(c => (
+                            <option key={c.id} value={c.id}>{c.name} - Section {c.section}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Languages Known</label>
-                      <input
-                        type="text"
-                        value={newStaff.languagesKnown}
-                        onChange={(e) => setNewStaff({ ...newStaff, languagesKnown: e.target.value })}
-                        placeholder="e.g. English, Hindi, Tamil (comma separated)"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
+                  {/* Section 5: Additional Custom Fields */}
+                  <div className="space-y-3.5 pt-2">
+                    <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Additional Custom Fields
+                      </h3>
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Residential Address</label>
-                      <textarea
-                        rows={2}
-                        value={newStaff.residentialAddress}
-                        onChange={(e) => setNewStaff({ ...newStaff, residentialAddress: e.target.value })}
-                        placeholder="Full Residential Address"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
                     <CustomFieldsRenderer
                       moduleKey="staff"
                       customData={newStaff.customData}
@@ -1902,51 +2071,77 @@ export default function StaffAssignment() {
 
               {/* Tab Content: Educational */}
               {addStaffActiveTab === 'Educational' && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-5 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Academic Credentials & Qualifications
+                      </h3>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Highest Qualification</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Highest Qualification
+                      </label>
                       <input
                         type="text"
                         value={newStaff.highestQualification}
                         onChange={(e) => setNewStaff({ ...newStaff, highestQualification: e.target.value })}
                         placeholder="e.g. Master of Arts"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Degree(s) and Specialization</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Degree(s) & Specialization
+                      </label>
                       <input
                         type="text"
                         value={newStaff.degreeSpecialization}
                         onChange={(e) => setNewStaff({ ...newStaff, degreeSpecialization: e.target.value })}
                         placeholder="e.g. B.Ed in English Literature"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">University / College Name</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        University / College Name
+                      </label>
                       <input
                         type="text"
                         value={newStaff.universityName}
                         onChange={(e) => setNewStaff({ ...newStaff, universityName: e.target.value })}
                         placeholder="e.g. University of Delhi"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Year of Passing</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Year of Passing
+                      </label>
                       <input
                         type="number"
                         value={newStaff.yearOfPassing}
                         onChange={(e) => setNewStaff({ ...newStaff, yearOfPassing: e.target.value })}
                         placeholder="e.g. 2018"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.yearOfPassing ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                          addStaffErrors.yearOfPassing
+                            ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                        }`}
                       />
-                      {addStaffErrors.yearOfPassing && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.yearOfPassing}</span>}
+                      {addStaffErrors.yearOfPassing && (
+                        <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                          <CircleAlert size={12} className="shrink-0" />
+                          <span>{addStaffErrors.yearOfPassing}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1954,60 +2149,88 @@ export default function StaffAssignment() {
 
               {/* Tab Content: Professional */}
               {addStaffActiveTab === 'Professional' && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-5 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Professional Background & Experience
+                      </h3>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Previous Experience (Years)</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Previous Experience (Years)
+                      </label>
                       <input
                         type="number"
                         value={newStaff.previousExperience}
                         onChange={(e) => setNewStaff({ ...newStaff, previousExperience: e.target.value })}
                         placeholder="e.g. 3"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.previousExperience ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                          addStaffErrors.previousExperience
+                            ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                        }`}
                       />
-                      {addStaffErrors.previousExperience && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.previousExperience}</span>}
+                      {addStaffErrors.previousExperience && (
+                        <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                          <CircleAlert size={12} className="shrink-0" />
+                          <span>{addStaffErrors.previousExperience}</span>
+                        </span>
+                      )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Previous School / Organization</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Previous School / Organization
+                      </label>
                       <input
                         type="text"
                         value={newStaff.previousOrganization}
                         onChange={(e) => setNewStaff({ ...newStaff, previousOrganization: e.target.value })}
                         placeholder="Previous School Name"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Subject Specialization</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Subject Specialization
+                      </label>
                       <input
                         type="text"
                         value={newStaff.subjectSpecialization}
                         onChange={(e) => setNewStaff({ ...newStaff, subjectSpecialization: e.target.value })}
                         placeholder="e.g. English Literature, Physics"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Grades / Classes Handled</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Grades / Classes Handled
+                      </label>
                       <input
                         type="text"
                         value={newStaff.gradesClassesHandled}
                         onChange={(e) => setNewStaff({ ...newStaff, gradesClassesHandled: e.target.value })}
                         placeholder="e.g. Class 9, Class 10 (comma separated)"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Professional Certifications</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Professional Certifications
+                      </label>
                       <input
                         type="text"
                         value={newStaff.professionalCertifications}
                         onChange={(e) => setNewStaff({ ...newStaff, professionalCertifications: e.target.value })}
                         placeholder="e.g. TEFL, CBSE In-Service Training"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                   </div>
@@ -2016,14 +2239,25 @@ export default function StaffAssignment() {
 
               {/* Tab Content: Government & Identity */}
               {addStaffActiveTab === 'Government & Identity' && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-5 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Statutory Identification & Verification
+                      </h3>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Government-Issued ID Type</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Government-Issued ID Type
+                      </label>
                       <select
                         value={newStaff.govtIdType}
                         onChange={(e) => setNewStaff({ ...newStaff, govtIdType: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all cursor-pointer"
                       >
                         <option value="Aadhaar">Aadhaar Card</option>
                         <option value="PAN">PAN Card</option>
@@ -2033,50 +2267,76 @@ export default function StaffAssignment() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Government-Issued ID Number</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Government-Issued ID Number
+                      </label>
                       <input
                         type="text"
                         value={newStaff.govtIdNumber}
                         onChange={(e) => setNewStaff({ ...newStaff, govtIdNumber: e.target.value })}
                         placeholder="ID Document Number"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Aadhaar Number (12 digits)</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Aadhaar Number (12 digits)
+                      </label>
                       <input
                         type="text"
                         value={newStaff.aadharNumber}
                         onChange={(e) => setNewStaff({ ...newStaff, aadharNumber: e.target.value })}
                         placeholder="e.g. 123456789012"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.aadharNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                          addStaffErrors.aadharNumber
+                            ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                        }`}
                       />
-                      {addStaffErrors.aadharNumber && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.aadharNumber}</span>}
+                      {addStaffErrors.aadharNumber && (
+                        <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                          <CircleAlert size={12} className="shrink-0" />
+                          <span>{addStaffErrors.aadharNumber}</span>
+                        </span>
+                      )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">PAN Number</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        PAN Number
+                      </label>
                       <input
                         type="text"
                         value={newStaff.panNumber}
                         onChange={(e) => setNewStaff({ ...newStaff, panNumber: e.target.value })}
                         placeholder="e.g. ABCDE1234F"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.panNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                          addStaffErrors.panNumber
+                            ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                        }`}
                       />
-                      {addStaffErrors.panNumber && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.panNumber}</span>}
+                      {addStaffErrors.panNumber && (
+                        <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                          <CircleAlert size={12} className="shrink-0" />
+                          <span>{addStaffErrors.panNumber}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Tax Identification Details (if different)</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Tax Identification Details (if different)
+                    </label>
                     <input
                       type="text"
                       value={newStaff.taxIdDetails}
                       onChange={(e) => setNewStaff({ ...newStaff, taxIdDetails: e.target.value })}
                       placeholder="Tax ID particulars"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                     />
                   </div>
                 </div>
@@ -2084,36 +2344,51 @@ export default function StaffAssignment() {
 
               {/* Tab Content: Employment */}
               {addStaffActiveTab === 'Employment' && (
-                <div className="space-y-4 animate-fade-in">
+                <div className="space-y-5 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Statutory Benefits & Social Security Details
+                      </h3>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">PF Number</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        PF Number
+                      </label>
                       <input
                         type="text"
                         value={newStaff.pfNumber}
                         onChange={(e) => setNewStaff({ ...newStaff, pfNumber: e.target.value })}
                         placeholder="Provident Fund Number"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">ESIC Number</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        ESIC Number
+                      </label>
                       <input
                         type="text"
                         value={newStaff.esicNumber}
                         onChange={(e) => setNewStaff({ ...newStaff, esicNumber: e.target.value })}
                         placeholder="ESIC Registration Number"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">UAN Number</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        UAN Number
+                      </label>
                       <input
                         type="text"
                         value={newStaff.uanNumber}
                         onChange={(e) => setNewStaff({ ...newStaff, uanNumber: e.target.value })}
                         placeholder="Universal Account Number"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                   </div>
@@ -2122,52 +2397,87 @@ export default function StaffAssignment() {
 
               {/* Tab Content: Banking */}
               {addStaffActiveTab === 'Banking' && (
-                <div className="space-y-4 animate-fade-in">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-5 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Bank Name</label>
-                      <input
-                        type="text"
-                        value={newStaff.bankName}
-                        onChange={(e) => setNewStaff({ ...newStaff, bankName: e.target.value })}
-                        placeholder="e.g. State Bank of India"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Bank Account Number</label>
-                      <input
-                        type="text"
-                        value={newStaff.bankAccountNumber}
-                        onChange={(e) => setNewStaff({ ...newStaff, bankAccountNumber: e.target.value })}
-                        placeholder="Digits only"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.bankAccountNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                      />
-                      {addStaffErrors.bankAccountNumber && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.bankAccountNumber}</span>}
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Direct Deposit & Banking Information
+                      </h3>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">Branch Name</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newStaff.bankName}
+                        onChange={(e) => setNewStaff({ ...newStaff, bankName: e.target.value })}
+                        placeholder="e.g. State Bank of India"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Bank Account Number
+                      </label>
+                      <input
+                        type="text"
+                        value={newStaff.bankAccountNumber}
+                        onChange={(e) => setNewStaff({ ...newStaff, bankAccountNumber: e.target.value })}
+                        placeholder="Digits only"
+                        className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                          addStaffErrors.bankAccountNumber
+                            ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                        }`}
+                      />
+                      {addStaffErrors.bankAccountNumber && (
+                        <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                          <CircleAlert size={12} className="shrink-0" />
+                          <span>{addStaffErrors.bankAccountNumber}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Branch Name
+                      </label>
                       <input
                         type="text"
                         value={newStaff.branchName}
                         onChange={(e) => setNewStaff({ ...newStaff, branchName: e.target.value })}
                         placeholder="e.g. Connaught Place Branch"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">IFSC Code</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        IFSC Code
+                      </label>
                       <input
                         type="text"
                         value={newStaff.ifscCode}
                         onChange={(e) => setNewStaff({ ...newStaff, ifscCode: e.target.value })}
                         placeholder="e.g. SBIN0001234"
-                        className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500 text-sm ${addStaffErrors.ifscCode ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 transition-all ${
+                          addStaffErrors.ifscCode
+                            ? 'border-rose-400 dark:border-rose-500 focus:ring-rose-500/20'
+                            : 'border-slate-200 dark:border-slate-700 focus:border-primary-600 focus:ring-primary-500/20'
+                        }`}
                       />
-                      {addStaffErrors.ifscCode && <span className="text-red-500 text-xs mt-1 block">{addStaffErrors.ifscCode}</span>}
+                      {addStaffErrors.ifscCode && (
+                        <span className="flex items-center gap-1 text-rose-500 text-xs font-medium mt-1">
+                          <CircleAlert size={12} className="shrink-0" />
+                          <span>{addStaffErrors.ifscCode}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2175,109 +2485,191 @@ export default function StaffAssignment() {
 
               {/* Tab Content: Uploads */}
               {addStaffActiveTab === 'Uploads' && (
-                <div className="space-y-4 animate-fade-in">
-                  {/* Photo upload */}
-                  <div className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/50">
-                    <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Photograph (JPG/PNG)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setAddStaffFiles(prev => ({ ...prev, photo: e.target.files[0] }))}
-                      className="text-sm"
-                    />
-                    {addStaffFiles.photo && (
-                      <div className="mt-2 flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs">
-                        <span className="truncate text-slate-700 dark:text-slate-200 font-semibold">{addStaffFiles.photo.name}</span>
-                        <button type="button" onClick={() => setAddStaffFiles(prev => ({ ...prev, photo: null }))} className="text-red-500 hover:text-red-700 font-bold px-2">Remove</button>
-                      </div>
-                    )}
+                <div className="space-y-5 animate-fade-in">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="w-1.5 h-4 bg-primary-600 rounded-full" />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                        Supporting Documents & Profile Photo
+                      </h3>
+                    </div>
                   </div>
 
-                  {/* Multi files upload helper */}
-                  {[
-                    { key: 'academicCertificates', label: 'Academic Certificates (PDF/Images)' },
-                    { key: 'markSheets', label: 'Mark Sheets (PDF/Images)' },
-                    { key: 'experienceCertificates', label: 'Experience Certificates (PDF/Images)' },
-                    { key: 'relievingLetter', label: 'Relieving Letter (PDF/Images)' },
-                    { key: 'resume', label: 'Resume / CV (PDF/Images)' },
-                    { key: 'referenceLetters', label: 'Reference Letters (PDF/Images)' },
-                    { key: 'govtIdDocument', label: 'Government-issued ID Document (PDF/Images)' },
-                    { key: 'salarySlips', label: 'Salary Slips (PDF/Images, Optional)' }
-                  ].map(({ key, label }) => (
-                    <div key={key} className="border border-slate-200 dark:border-slate-700 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-800/50">
-                      <label className="block text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">{label}</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf, image/*"
-                        onChange={(e) => {
-                          const selected = Array.from(e.target.files);
-                          const validFiles = [];
-                          selected.forEach(file => {
-                            if (file.size > 3145728 && !file.type.startsWith('audio/')) {
-                              toast.error(`File "${file.name}" exceeds the 3MB limit.`);
-                            } else {
-                              validFiles.push(file);
-                            }
-                          });
-                          setAddStaffFiles(prev => ({
-                            ...prev,
-                            [key]: [...(prev[key] || []), ...validFiles]
-                          }));
-                          e.target.value = '';
-                        }}
-                        className="text-sm"
-                      />
-                      {(addStaffFiles[key] || []).length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {(addStaffFiles[key] || []).map((file, idx) => (
-                            <div key={`${key}_${idx}`} className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs">
-                              <span className="truncate text-slate-700 dark:text-slate-200 font-semibold">{file.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAddStaffFiles(prev => {
-                                    const list = [...prev[key]];
-                                    list.splice(idx, 1);
-                                    return { ...prev, [key]: list };
-                                  });
-                                }}
-                                className="text-red-500 hover:text-red-700 font-bold px-2 flex items-center justify-center p-1 hover:bg-red-50 dark:hover:bg-slate-800 rounded"
-                                title="Remove Document"
-                              >
-                                <Trash size={16} />
-                              </button>
-                            </div>
-                          ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Photograph Card */}
+                    <div className="border border-slate-200/90 dark:border-slate-750 rounded-2xl p-4 bg-slate-50/60 dark:bg-slate-800/40 hover:border-primary-300 dark:hover:border-primary-700 transition-all flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                            Photograph
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                            JPG, PNG
+                          </span>
                         </div>
-                      )}
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                          Clear portrait photo for the staff ID and profile card.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white dark:bg-slate-900 hover:bg-primary-50 dark:hover:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 hover:border-primary-500 dark:hover:border-primary-400 rounded-xl cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all shadow-sm">
+                          <UploadCloud size={16} className="text-primary-600 dark:text-primary-400" />
+                          <span>Choose Photograph</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setAddStaffFiles(prev => ({ ...prev, photo: e.target.files[0] }))}
+                            className="sr-only"
+                          />
+                        </label>
+
+                        {addStaffFiles.photo && (
+                          <div className="mt-2.5 flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs">
+                            <span className="truncate text-slate-700 dark:text-slate-200 font-medium">
+                              {addStaffFiles.photo.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setAddStaffFiles(prev => ({ ...prev, photo: null }))}
+                              className="text-rose-500 hover:text-rose-700 font-semibold text-xs ml-2 px-2 py-0.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
+
+                    {/* Multi files upload cards */}
+                    {[
+                      { key: 'academicCertificates', label: 'Academic Certificates', desc: 'Degree certificates, diplomas, and official qualifications.' },
+                      { key: 'markSheets', label: 'Mark Sheets', desc: 'Semester mark sheets and grade transcripts.' },
+                      { key: 'experienceCertificates', label: 'Experience Certificates', desc: 'Service certificates from prior institutions.' },
+                      { key: 'relievingLetter', label: 'Relieving Letter', desc: 'Formal release letter from former employer.' },
+                      { key: 'resume', label: 'Resume / CV', desc: 'Comprehensive curriculum vitae or bio-data.' },
+                      { key: 'referenceLetters', label: 'Reference Letters', desc: 'Recommendations and professional referrals.' },
+                      { key: 'govtIdDocument', label: 'Government ID Document', desc: 'Scanned copy of Aadhaar, PAN, or Passport.' },
+                      { key: 'salarySlips', label: 'Salary Slips (Optional)', desc: 'Recent pay stubs or compensation statements.' }
+                    ].map(({ key, label, desc }) => (
+                      <div
+                        key={key}
+                        className="border border-slate-200/90 dark:border-slate-750 rounded-2xl p-4 bg-slate-50/60 dark:bg-slate-800/40 hover:border-primary-300 dark:hover:border-primary-700 transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                              {label}
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                              PDF, Img &le; 3MB
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                            {desc}
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white dark:bg-slate-900 hover:bg-primary-50 dark:hover:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-600 hover:border-primary-500 dark:hover:border-primary-400 rounded-xl cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all shadow-sm">
+                            <FileUp size={16} className="text-primary-600 dark:text-primary-400" />
+                            <span>Upload Document(s)</span>
+                            <input
+                              type="file"
+                              multiple
+                              accept=".pdf, image/*"
+                              onChange={(e) => {
+                                const selected = Array.from(e.target.files);
+                                const validFiles = [];
+                                selected.forEach(file => {
+                                  if (file.size > 3145728 && !file.type.startsWith('audio/')) {
+                                    toast.error(`File "${file.name}" exceeds the 3MB limit.`);
+                                  } else {
+                                    validFiles.push(file);
+                                  }
+                                });
+                                setAddStaffFiles(prev => ({
+                                  ...prev,
+                                  [key]: [...(prev[key] || []), ...validFiles]
+                                }));
+                                e.target.value = '';
+                              }}
+                              className="sr-only"
+                            />
+                          </label>
+
+                          {(addStaffFiles[key] || []).length > 0 && (
+                            <div className="mt-2.5 space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                              {(addStaffFiles[key] || []).map((file, idx) => (
+                                <div
+                                  key={`${key}_${idx}`}
+                                  className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText size={14} className="text-primary-500 shrink-0" />
+                                    <span className="truncate text-slate-700 dark:text-slate-200 font-medium">
+                                      {file.name}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAddStaffFiles(prev => {
+                                        const list = [...prev[key]];
+                                        list.splice(idx, 1);
+                                        return { ...prev, [key]: list };
+                                      });
+                                    }}
+                                    className="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition-colors ml-2 shrink-0"
+                                    title="Remove Document"
+                                  >
+                                    <Trash size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="p-6 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 shrink-0">
-              <button
-                onClick={() => setAddStaffModalOpen(false)}
-                className="px-5 py-2.5 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddStaff}
-                disabled={addingStaff}
-                className="px-6 py-2.5 bg-primary-600 text-white font-bold hover:bg-primary-700 rounded-xl shadow-sm disabled:opacity-50 transition-colors flex items-center gap-2"
-              >
-                {addingStaff ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Adding...</span>
-                  </>
-                ) : (
-                  'Add Staff Member'
-                )}
-              </button>
+            {/* Modal Footer */}
+            <div className="px-6 py-4 sm:px-8 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <Info size={14} className="text-slate-400 shrink-0" />
+                <span>Fields marked with <span className="text-rose-500 font-bold">*</span> are required</span>
+              </div>
+              <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setAddStaffModalOpen(false)}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-all duration-150 active:scale-95 shadow-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddStaff}
+                  disabled={addingStaff}
+                  className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow shadow-primary-500/25 disabled:opacity-50 transition-all duration-150 flex items-center justify-center gap-2 active:scale-95 min-w-[160px]"
+                >
+                  {addingStaff ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      <span>Adding Staff...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} />
+                      <span>Add Staff Member</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
