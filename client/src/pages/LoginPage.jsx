@@ -86,7 +86,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error(err);
-      setError("Invalid email/admission number or password.");
+      setError(err.message || "Invalid email/admission number or password.");
       setLoading(false);
     }
   };

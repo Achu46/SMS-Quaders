@@ -227,17 +227,25 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    if (user.status === 'INVITED') {
-      return res.status(403).json({ error: 'Please complete your registration using the link shared by your admin.' });
-    }
-
     if (!user.password) {
+      if (user.status === 'INVITED') {
+        return res.status(403).json({ error: 'Please complete your registration using the link shared by your admin.' });
+      }
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // If staff had a valid password and was in INVITED status, auto-activate them
+    if (user.status === 'INVITED') {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'ACTIVE' }
+      });
+      user.status = 'ACTIVE';
     }
 
     const schoolStatus = user.school ? user.school.status : (user.role === 'SUPER_ADMIN' ? 'ACTIVE' : null);
