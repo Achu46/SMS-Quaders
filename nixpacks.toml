@@ -9,3 +9,4 @@ cmds = ["npm --prefix server run build"]
 
 [start]
 cmd = "npm --prefix server start"
+

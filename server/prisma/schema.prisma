@@ -74,16 +74,17 @@ enum StaffStatus {
 }
 
 model Role {
-  id           String           @id @default(uuid())
-  collegeId    String           // scoped by collegeId (tenant ID)
-  school       School           @relation(fields: [collegeId], references: [id], onDelete: Cascade)
-  name         String
-  description  String?
-  permissions  RolePermission[]
-  users        User[]
+  id                 String           @id @default(uuid())
+  collegeId          String           // scoped by collegeId (tenant ID)
+  school             School           @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  permissionsVersion Int              @default(1)
+  permissions        RolePermission[]
+  users              User[]
 
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@unique([collegeId, name])
   @@index([collegeId])

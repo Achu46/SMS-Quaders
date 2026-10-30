@@ -220,6 +220,10 @@ router.patch('/:id', authenticateToken, updateSchoolDetailsHandler);
 
 // Handler for status update
 async function updateSchoolStatusHandler(req, res) {
+  // If request contains general school fields, delegate to updateSchoolDetailsHandler for backward compatibility
+  if (!req.body.status && (req.body.name || req.body.branding || req.body.contactPhone || req.body.phone || req.body.location || req.body.address || req.body.website || req.body.academicConfig || req.body.customData)) {
+    return updateSchoolDetailsHandler(req, res);
+  }
   try {
     const { status, setupCompleted, academicSetupCompleted } = req.body;
     const prisma = req.prisma;

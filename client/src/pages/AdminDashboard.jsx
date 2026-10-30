@@ -8,7 +8,8 @@ import {
   LuPackage as PackageIcon, LuBriefcase as Briefcase, LuChartBar as BarChart2, LuHeartPulse as HeartPulse, 
   LuCircleAlert as AlertCircle, LuFiles as Files, LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, 
   LuShield as Shield, LuLayoutGrid as LayoutGrid, LuMessageSquare as MessageSquare, LuCoffee as Coffee,
-  LuLock as Lock 
+  LuLock as Lock,
+  LuShieldAlert as ShieldAlert
 } from 'react-icons/lu';
 import { logoutUser } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
@@ -180,6 +181,11 @@ export default function AdminDashboard() {
   }
 
   const isAdmin = userProfile?.role?.toLowerCase() === 'admin' || userProfile?.role?.toLowerCase() === 'superadmin' || userProfile?.role?.toLowerCase() === 'super_admin';
+  const isStaff = !isAdmin;
+  const permittedModuleKeys = (typeof permissions === 'object' && permissions !== null)
+    ? Object.keys(permissions).filter(k => Boolean(permissions[k]?.read || permissions[k]?.canRead || permissions[k]?.create || permissions[k]?.update || permissions[k]?.delete))
+    : [];
+  const hasNoAccess = isStaff && permittedModuleKeys.length === 0;
   const isSetupCompleted = Boolean(
     userProfile?.academicSetupCompleted ?? 
     userProfile?.setupCompleted ?? 
@@ -280,7 +286,13 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => {
+          {hasNoAccess ? (
+            <div className="px-4 py-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl mx-2 border border-slate-100 dark:border-slate-800">
+              <ShieldAlert size={28} className="mx-auto text-amber-500 mb-2" />
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Access Assigned</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Contact your admin.</p>
+            </div>
+          ) : navItems.map((item) => {
             const hasSubItems = item.subItems && item.subItems.length > 0;
             const isExpanded = expandedMenus.includes(item.name);
 
@@ -464,13 +476,31 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            <Suspense fallback={
-              <div className="flex justify-center items-center h-[50vh]">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-coral/20 border-t-coral"></div>
+            {hasNoAccess ? (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm animate-fade-in-up">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
+                  <ShieldAlert size={36} />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No access assigned</h2>
+                <p className="text-slate-500 dark:text-slate-400 max-w-md mb-6 text-sm">
+                  No access assigned. Contact your admin.
+                </p>
+                <button
+                  onClick={() => updateProfileData && updateProfileData()}
+                  className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition-all shadow-md shadow-orange-500/25"
+                >
+                  Check for Updates
+                </button>
               </div>
-            }>
-              <Outlet />
-            </Suspense>
+            ) : (
+              <Suspense fallback={
+                <div className="flex justify-center items-center h-[50vh]">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-coral/20 border-t-coral"></div>
+                </div>
+              }>
+                <Outlet />
+              </Suspense>
+            )}
           </div>
         </main>
       </div>

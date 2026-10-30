@@ -4,7 +4,7 @@ import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSubCollection, updateSubDocument, addSubDocument, subscribeToSubCollection, deleteSubDocument } from '../../firebase/firestore';
 import { doc, getDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { db, socket } from '../../firebase/config';
 import { uploadFileToCloudinaryOrFirebase, uploadCustomDataFiles } from '../../utils/cloudinary';
 import { LuSearch as Search, LuShieldCheck as ShieldCheck, LuMail as Mail, LuUsers as Users, LuCircleCheck as CheckCircle2, LuX as X, LuCloudUpload as UploadCloud, LuFileText as FileText, LuExternalLink as ExternalLink, LuDownload as Download, LuFileSpreadsheet as FileSpreadsheet, LuUserPlus as UserPlus, LuEye as Eye, LuFilter as Filter, LuLink as LinkIcon, LuCopy as CopyIcon, LuTrash2 as Trash, LuFileDown as FileDown } from 'react-icons/lu';
 import { TableSkeleton } from '../../components/Skeleton';
@@ -68,6 +68,30 @@ export default function StaffAssignment() {
     loading: false,
     emailSending: false
   });
+
+  const fetchRoles = async () => {
+    try {
+      const data = await api.get('/roles');
+      if (Array.isArray(data)) {
+        setRolesList(data);
+        setAllRoles(data.map(r => r.name));
+      } else {
+        setRolesList([]);
+        setAllRoles([]);
+      }
+    } catch (err) {
+      console.error('Error fetching custom roles:', err);
+      setRolesList([]);
+      setAllRoles([]);
+    }
+  };
+
+  const getStaffRoleName = (member) => {
+    const backendUser = (member.userId && backendStaffMap[member.userId]) || (member.email && backendStaffMap[member.email?.toLowerCase()]) || (member.staffId && backendStaffMap[member.staffId]);
+    const activeRoleId = backendUser?.roleId || member.roleId;
+    const matchedRole = rolesList.find(r => r.id === activeRoleId);
+    return matchedRole?.name || member.customRole?.name || member.role || (member.roles && member.roles[0]) || 'No Role';
+  };
 
   const loadBackendStaff = async () => {
     try {
@@ -338,21 +362,7 @@ export default function StaffAssignment() {
 
     subjectsUnsub = subscribeToSubCollection(schoolId, 'subjects', setSubjects);
 
-    // Fetch custom roles list from Express REST API (strictly scoped to collegeId)
-    api.get('/roles').then(data => {
-      if (Array.isArray(data)) {
-        setRolesList(data);
-        setAllRoles(data.map(r => r.name));
-      } else {
-        setRolesList([]);
-        setAllRoles([]);
-      }
-    }).catch(err => {
-      console.error("Error fetching custom roles:", err);
-      setRolesList([]);
-      setAllRoles([]);
-    });
-
+    fetchRoles();
     loadBackendStaff();
 
     return () => {
@@ -361,6 +371,29 @@ export default function StaffAssignment() {
       if (subjectsUnsub) subjectsUnsub();
     };
   }, [schoolId]);
+
+
+  // Reactive sync on focus, socket permissions-updated, and custom permissions_changed events
+  useEffect(() => {
+    const handleSync = () => {
+      fetchRoles();
+      loadBackendStaff();
+    };
+
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('quaders:permissions_changed', handleSync);
+    if (socket) {
+      socket.on('permissions-updated', handleSync);
+    }
+
+    return () => {
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('quaders:permissions_changed', handleSync);
+      if (socket) {
+        socket.off('permissions-updated', handleSync);
+      }
+    };
+  }, []);
 
   // Click outside to close filter dropdown
   useEffect(() => {
@@ -933,8 +966,7 @@ export default function StaffAssignment() {
       if (selectedFields.name) row["Name"] = member.name || `${member.firstName} ${member.lastName}`.trim();
       if (selectedFields.email) row["Email"] = member.email || '';
       if (selectedFields.role) {
-        const currentRoles = member.roles || (member.role ? [member.role] : ['Staffs']);
-        row["Role"] = currentRoles.join(', ');
+        row["Role"] = getStaffRoleName(member);
       }
       if (selectedFields.assignedClass) row["Assigned Class"] = getClassName(member.assignedClassId);
       if (selectedFields.subjectClasses) row["Subject Classes"] = (member.subjectClassIds || []).map(getClassName).join(', ');
@@ -959,8 +991,10 @@ export default function StaffAssignment() {
     const name = member.name || `${member.firstName} ${member.lastName}`;
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
            (member.email && member.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const staffRole = getStaffRoleName(member);
     const matchesRole = roleFilter === 'all' || 
-                         (member.roles || [member.role || 'Staffs']).includes(roleFilter);
+                         staffRole.toLowerCase() === roleFilter.toLowerCase() || 
+                         (member.roles && member.roles.some(r => r.toLowerCase() === roleFilter.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || (member.status || 'Active') === statusFilter;
     const matchesGender = genderFilter === 'all' || normalizeGender(member.gender, '') === genderFilter;
     
@@ -1026,6 +1060,7 @@ export default function StaffAssignment() {
           {hasCreatePermission && (
             <button 
               onClick={() => {
+                fetchRoles();
                 setAddStaffActiveTab('Personal');
                 setAddStaffModalOpen(true);
               }}
@@ -1097,21 +1132,9 @@ export default function StaffAssignment() {
               className="px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Roles</option>
-              <option value="Correspondent">Correspondent</option>
-              <option value="Principal">Principal</option>
-              <option value="Vice Principal">Vice Principal</option>
-              <option value="Subject Wise Head">Subject Wise Head</option>
-              <option value="Class Incharge">Class Incharge</option>
-              <option value="Staffs">Staffs</option>
-              <option value="Administrative Officer">Administrative Officer</option>
-              <option value="Finance Department">Finance Department</option>
-              <option value="Library">Library</option>
-              <option value="Canteen">Canteen</option>
-              <option value="Transport">Transport</option>
-              <option value="Janitors">Janitors</option>
-              <option value="Hostel">Hostel</option>
-              <option value="Inventory">Inventory</option>
-              <option value="Security">Security</option>
+              {rolesList.map(r => (
+                <option key={r.id} value={r.name}>{r.name}</option>
+              ))}
             </select>
             <select 
               value={statusFilter}
@@ -1239,7 +1262,7 @@ export default function StaffAssignment() {
                           <div className="font-semibold text-slate-900 dark:text-white leading-snug">
                             {name}
                             <div className="text-xs font-medium text-orange-600 dark:text-orange-400">
-                              {member.customRole?.name || member.role || (member.roles && member.roles[0]) || 'No Role'}
+                              {getStaffRoleName(member)}
                             </div>
                           </div>
                         </div>

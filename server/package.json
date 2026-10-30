@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node start.js",
-    "test": "node tests/ai.test.js && node tests/security.test.js && node tests/p1.test.js && node tests/exams.test.js && node tests/workflow.test.js && node tests/staffInvite.test.js",
+    "test": "node tests/ai.test.js && node tests/security.test.js && node tests/p1.test.js && node tests/exams.test.js && node tests/workflow.test.js && node tests/staffInvite.test.js && node tests/roleSync.test.js",
     "seed": "node prisma/seed.js",
     "db:init": "node prisma/migrate.js",
     "db:check": "node prisma/check_db.js",

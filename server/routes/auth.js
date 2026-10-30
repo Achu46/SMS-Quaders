@@ -260,6 +260,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       permissions = extractPermissions(user.customRole, user.staffRole);
     }
 
+    const permissionsVersion = user.customRole ? (user.customRole.permissionsVersion || 1) : 1;
     const token = jwt.sign(
       {
         id: user.id,
@@ -267,8 +268,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         schoolId: user.schoolId,
         schoolStatus,
         setupCompleted,
-        staffRoleId: user.staffRoleId,
-        permissions
+        roleId: user.roleId,
+        permissionsVersion
       },
       process.env.JWT_SECRET || 'secret-key-for-dev',
       { expiresIn: '7d' }
@@ -379,18 +380,14 @@ router.post('/login-admission', loginLimiter, async (req, res) => {
   }
 });
 
-// GET /api/auth/profile
-// Current session profile
-router.get('/profile', authenticateToken, async (req, res) => {
+// Handler for current user session profile (/api/auth/me & /api/auth/profile)
+async function getSessionProfileHandler(req, res) {
   try {
     const prisma = req.prisma;
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       include: {
         school: true,
-        customRole: {
-          include: { permissions: true }
-        },
         customRole: {
           include: { permissions: true }
         },
@@ -413,9 +410,16 @@ router.get('/profile', authenticateToken, async (req, res) => {
       permissions = extractPermissions(user.customRole, user.staffRole);
     }
 
-    // Self-heal outdated JWT tokens
+    const permissionsVersion = user.customRole ? (user.customRole.permissionsVersion || 1) : 1;
+
+    // Self-heal outdated JWT tokens when role, permissionsVersion, or school status changed
     let freshToken = null;
-    if (req.user.schoolStatus !== schoolStatus || req.user.setupCompleted !== setupCompleted) {
+    if (
+      req.user.schoolStatus !== schoolStatus ||
+      req.user.setupCompleted !== setupCompleted ||
+      req.user.roleId !== user.roleId ||
+      req.user.permissionsVersion !== permissionsVersion
+    ) {
       freshToken = jwt.sign(
         {
           id: user.id,
@@ -423,8 +427,8 @@ router.get('/profile', authenticateToken, async (req, res) => {
           schoolId: user.schoolId,
           schoolStatus,
           setupCompleted,
-          staffRoleId: user.staffRoleId,
-          permissions
+          roleId: user.roleId,
+          permissionsVersion
         },
         process.env.JWT_SECRET || 'secret-key-for-dev',
         { expiresIn: '7d' }
@@ -435,19 +439,27 @@ router.get('/profile', authenticateToken, async (req, res) => {
     res.json({
       ...userWithoutPassword,
       role: user.role.toLowerCase(),
+      roleId: user.roleId,
       schoolStatus,
       setupCompleted,
       academicSetupCompleted,
       permissions,
       rolePermissions: permissions,
       customRole: user.customRole,
+      permissionsVersion,
       ...(freshToken ? { token: freshToken } : {})
     });
   } catch (error) {
     console.error('Profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}
+
+// GET /api/auth/me (Standard user profile endpoint)
+router.get('/me', authenticateToken, getSessionProfileHandler);
+
+// GET /api/auth/profile (Backward compatibility alias)
+router.get('/profile', authenticateToken, getSessionProfileHandler);
 
 // GET /api/auth/school-status/:schoolId
 // Polling endpoint for tenant status checking
