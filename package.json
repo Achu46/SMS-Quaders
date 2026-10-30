@@ -1,0 +1,19 @@
+{
+  "name": "queflow-erp",
+  "version": "1.0.0",
+  "description": "Queflow ERP - School Management System",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "start": "npm --prefix server start",
+    "build": "npm --prefix server run build",
+    "build:all": "npm --prefix server run build && npm --prefix client run build",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "test": "npm --prefix server test",
+    "db:init": "npm --prefix server run db:init",
+    "db:check": "npm --prefix server run db:check"
+  }
+}

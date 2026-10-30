@@ -1,4 +1,3 @@
-const EmbeddedPostgres = require('embedded-postgres').default;
 const path = require('path');
 const fs = require('fs');
 const net = require('net');
@@ -23,6 +22,11 @@ function isPortOpen(port, host = '127.0.0.1') {
 }
 
 async function startLocalDatabase() {
+  // Never attempt to run embedded postgres in production or inside cloud containers (e.g. Railway, Render, Docker)
+  if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL) {
+    return null;
+  }
+
   const isOpen = await isPortOpen(5432);
   if (isOpen) {
     console.log('✅ PostgreSQL is already running on port 5432.');
@@ -30,35 +34,48 @@ async function startLocalDatabase() {
   }
 
   console.log('🚀 Starting local embedded PostgreSQL on port 5432...');
-  const dataDir = path.join(__dirname, 'data', 'pgdata');
-  const pg = new EmbeddedPostgres({
-    databaseDir: dataDir,
-    port: 5432,
-    user: 'postgres',
-    password: 'Cgs@001a',
-    persistent: true
-  });
-
-  const isInitialized = fs.existsSync(path.join(dataDir, 'PG_VERSION'));
-  if (!isInitialized) {
-    await pg.initialise();
-  }
-  await pg.start();
-
   try {
-    await pg.createDatabase('railway');
-  } catch (err) {
-    // Database might already exist
-  }
+    let EmbeddedPostgres;
+    try {
+      EmbeddedPostgres = require('embedded-postgres').default || require('embedded-postgres');
+    } catch (e) {
+      console.warn('⚠️ [localDb] embedded-postgres not available:', e.message);
+      return null;
+    }
 
-  try {
-    await pg.createDatabase('quaders');
-  } catch (err) {
-    // Database might already exist
-  }
+    const dataDir = path.join(__dirname, 'data', 'pgdata');
+    const pg = new EmbeddedPostgres({
+      databaseDir: dataDir,
+      port: 5432,
+      user: 'postgres',
+      password: 'Cgs@001a',
+      persistent: true
+    });
 
-  console.log('✅ Local PostgreSQL started and ready on port 5432.');
-  return pg;
+    const isInitialized = fs.existsSync(path.join(dataDir, 'PG_VERSION'));
+    if (!isInitialized) {
+      await pg.initialise();
+    }
+    await pg.start();
+
+    try {
+      await pg.createDatabase('railway');
+    } catch (err) {
+      // Database might already exist
+    }
+
+    try {
+      await pg.createDatabase('quaders');
+    } catch (err) {
+      // Database might already exist
+    }
+
+    console.log('✅ Local PostgreSQL started and ready on port 5432.');
+    return pg;
+  } catch (err) {
+    console.warn('⚠️ [localDb] Embedded PostgreSQL start skipped:', err.message);
+    return null;
+  }
 }
 
 module.exports = { startLocalDatabase, isPortOpen };
