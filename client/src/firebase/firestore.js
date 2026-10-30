@@ -15,8 +15,8 @@ export const getSubCollection = async (schoolId, collectionName) => {
 
 export const notifyCollectionChange = (collectionName, detail = {}) => {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent(`quaders_collection_${collectionName}`, { detail }));
-    window.dispatchEvent(new CustomEvent('quaders_any_collection_change', { detail: { collection: collectionName, ...detail } }));
+    window.dispatchEvent(new CustomEvent(`queflow_collection_${collectionName}`, { detail }));
+    window.dispatchEvent(new CustomEvent('queflow_any_collection_change', { detail: { collection: collectionName, ...detail } }));
   }
 };
 
@@ -96,7 +96,7 @@ export const subscribeToSubCollection = (schoolId, collectionName, callback) => 
 
   socket.on("collection_change", handleSocketUpdate);
   if (typeof window !== 'undefined') {
-    window.addEventListener(`quaders_collection_${collectionName}`, handleLocalUpdate);
+    window.addEventListener(`queflow_collection_${collectionName}`, handleLocalUpdate);
   }
 
   return () => {
@@ -104,7 +104,7 @@ export const subscribeToSubCollection = (schoolId, collectionName, callback) => 
     socket.off("connect", joinRoom);
     socket.off("collection_change", handleSocketUpdate);
     if (typeof window !== 'undefined') {
-      window.removeEventListener(`quaders_collection_${collectionName}`, handleLocalUpdate);
+      window.removeEventListener(`queflow_collection_${collectionName}`, handleLocalUpdate);
     }
   };
 };
@@ -254,11 +254,11 @@ export const getPlans = async () => {
     if (Array.isArray(plans) && plans.length > 0) {
       return plans;
     }
-  } catch (e) {}
+  } catch (e) { }
 
-  const local = localStorage.getItem('quaders_subscription_plans');
+  const local = localStorage.getItem('queflow_subscription_plans');
   if (local) {
-    try { return JSON.parse(local); } catch (e) {}
+    try { return JSON.parse(local); } catch (e) { }
   }
 
   return DEFAULT_SUBSCRIPTION_PLANS;
@@ -291,11 +291,11 @@ export const subscribeToSubscriptionPlans = (callback) => {
 export const updateSubscriptionPlan = async (planId, planData) => {
   try {
     await api.put(`/schools/global/collections/subscription_plans/${planId}`, planData);
-  } catch (e) {}
+  } catch (e) { }
 
   const current = await getPlans();
   const updated = current.map(p => p.id === planId ? { ...p, ...planData } : p);
-  localStorage.setItem('quaders_subscription_plans', JSON.stringify(updated));
+  localStorage.setItem('queflow_subscription_plans', JSON.stringify(updated));
   return { id: planId, ...planData };
 };
 
@@ -304,9 +304,9 @@ export const initializeDefaultSubscriptionPlans = async () => {
     for (const plan of DEFAULT_SUBSCRIPTION_PLANS) {
       await api.put(`/schools/global/collections/subscription_plans/${plan.id}`, plan);
     }
-  } catch (e) {}
+  } catch (e) { }
 
-  localStorage.setItem('quaders_subscription_plans', JSON.stringify(DEFAULT_SUBSCRIPTION_PLANS));
+  localStorage.setItem('queflow_subscription_plans', JSON.stringify(DEFAULT_SUBSCRIPTION_PLANS));
   return DEFAULT_SUBSCRIPTION_PLANS;
 };
 
@@ -476,7 +476,7 @@ export const updateLeaveApprovalRule = (schoolId, id, data) => updateSubDocument
 export const deleteLeaveApprovalRule = (schoolId, id) => deleteSubDocument(schoolId, 'leave_rules', id);
 
 export const saveAttendanceSettings = async (schoolId, settings) => updateSubDocument(schoolId, 'settings', 'attendance', settings);
-export const subscribeToPlans = (callback) => { getPlans().then(callback); return () => {}; };
+export const subscribeToPlans = (callback) => { getPlans().then(callback); return () => { }; };
 export const subscribeToAttendanceForClass = subscribeToAttendance;
 
 // --- Transport Operations ---
@@ -707,17 +707,17 @@ export const updateNotice = async (schoolId, noticeId, data) => {
   return await updateSubDocument(schoolId, 'notices', noticeId, data);
 };
 
-export const markNoticeAsViewed = async () => {};
+export const markNoticeAsViewed = async () => { };
 
 // --- Other Compatibility Helpers ---
 
 export const getTransportRoutes = async (schoolId) => getSubCollection(schoolId, 'transport_routes');
 export const checkParentRegistration = async () => false;
 export const deleteChatMessage = async (schoolId, msgId) => deleteSubDocument(schoolId, 'messages', msgId);
-export const updateChatRoomStatus = async () => {};
-export const subscribeToChatRoom = (s, st, t, cb) => { cb(null); return () => {}; };
+export const updateChatRoomStatus = async () => { };
+export const subscribeToChatRoom = (s, st, t, cb) => { cb(null); return () => { }; };
 export const getChatsForTeacher = async () => [];
-export const markChatRead = async () => {};
+export const markChatRead = async () => { };
 export const createChannel = async (s, data) => addSubDocument(s, 'channels', data);
 export const getChannelsForUser = async (s) => getSubCollection(s, 'channels');
 export const subscribeToChannelMessages = (s, c, cb) => subscribeToSubCollection(s, `channel_${c}_messages`, cb);
@@ -725,11 +725,11 @@ export const sendChannelMessage = async (s, c, data) => addSubDocument(s, `chann
 export const subscribeToMessages = (s, r, cb) => subscribeToSubCollection(s, `room_${r}_messages`, cb);
 export const sendMessage = async (s, r, data) => addSubDocument(s, `room_${r}_messages`, data);
 export const getChatThreads = async (schoolId) => getSubCollection(schoolId, 'chat_threads');
-export const cleanupOldChatAudio = async () => {};
-export const updateStudentRunningStatsAndFlags = async () => {};
-export const unlinkStudentFromParent = async () => {};
-export const linkStudentToParent = async () => {};
-export const switchActiveStudent = async () => {};
+export const cleanupOldChatAudio = async () => { };
+export const updateStudentRunningStatsAndFlags = async () => { };
+export const unlinkStudentFromParent = async () => { };
+export const linkStudentToParent = async () => { };
+export const switchActiveStudent = async () => { };
 export const subscribeToStudentPTMs = (schoolId, studentId, callback) => {
   return subscribeToSubCollection(schoolId, 'ptm_meetings', (all) => {
     callback((all || []).filter(p => p.studentId === studentId));

@@ -120,9 +120,9 @@ router.post('/register-school', async (req, res) => {
 
     // Generate JWT with initial claims
     const token = jwt.sign(
-      { 
-        id: result.user.id, 
-        role: result.user.role, 
+      {
+        id: result.user.id,
+        role: result.user.role,
         schoolId: result.school.id,
         schoolStatus: result.school.status,
         setupCompleted: result.school.setupCompleted,
@@ -222,7 +222,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         staffRole: true
       }
     });
-    
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -253,9 +253,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        role: user.role, 
+      {
+        id: user.id,
+        role: user.role,
         schoolId: user.schoolId,
         schoolStatus,
         setupCompleted,
@@ -313,11 +313,13 @@ router.post('/login-admission', loginLimiter, async (req, res) => {
     }
 
     // Construct synthetic parent email
-    const syntheticEmail = `${admissionNo.replace(/[^a-zA-Z0-9]/g, '')}@parent.quaders.com`.toLowerCase();
+    const sanitizedAdmission = admissionNo.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const syntheticEmail = `${sanitizedAdmission}@parent.queflow.com`;
+    const fallbackEmail = `${sanitizedAdmission}@parent.quaders.com`;
 
     // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { email: syntheticEmail },
+    const user = await prisma.user.findFirst({
+      where: { email: { in: [syntheticEmail, fallbackEmail] } },
       include: { school: true }
     });
 
@@ -340,12 +342,12 @@ router.post('/login-admission', loginLimiter, async (req, res) => {
 
     const schoolStatus = user.school ? user.school.status : 'ACTIVE';
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        role: user.role, 
-        schoolId: user.schoolId, 
+      {
+        id: user.id,
+        role: user.role,
+        schoolId: user.schoolId,
         studentId: student.id,
-        schoolStatus 
+        schoolStatus
       },
       process.env.JWT_SECRET || 'secret-key-for-dev',
       { expiresIn: '7d' }
@@ -407,9 +409,9 @@ router.get('/profile', authenticateToken, async (req, res) => {
     let freshToken = null;
     if (req.user.schoolStatus !== schoolStatus || req.user.setupCompleted !== setupCompleted) {
       freshToken = jwt.sign(
-        { 
-          id: user.id, 
-          role: user.role, 
+        {
+          id: user.id,
+          role: user.role,
           schoolId: user.schoolId,
           schoolStatus,
           setupCompleted,
@@ -474,7 +476,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
     const standardMessage = 'If this email is registered, password reset instructions have been sent.';
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-    
+
     // Constant time/generic response if user does not exist (prevents enumeration)
     if (!user) {
       return res.json({ message: standardMessage });
@@ -506,7 +508,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     } else {
       console.log(`[AUTH] Password reset token generated for user id: ${user.id}`);
     }
-    
+
     const responsePayload = { message: standardMessage };
     if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
       responsePayload.devResetToken = rawToken;

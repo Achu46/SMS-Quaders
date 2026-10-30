@@ -1,0 +1,6 @@
+{
+  "watch": ["routes", "index.js", "prismaClient.js", "services"],
+  "ignore": ["uploads/*", "tests/*", "node_modules/*", "*.log", ".git/*"],
+  "delay": "1000",
+  "ext": "js,json"
+}

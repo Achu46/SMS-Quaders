@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_me_in_production';
-const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET || 'quaders_webhook_secret_dev';
+const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET || 'queflow_webhook_secret_dev';
 
 console.log('\n========================================');
 console.log('🔒 Starting P0 Security & Isolation Test Suite');
@@ -215,7 +215,7 @@ async function runAllSecurityTests() {
         update: async ({ data }) => { userPasswordUpdated = data.password; }
       },
       passwordResetToken: {
-        deleteMany: async () => {},
+        deleteMany: async () => { },
         create: async ({ data }) => {
           savedTokenHash = data.tokenHash;
           savedExpiresAt = data.expiresAt;

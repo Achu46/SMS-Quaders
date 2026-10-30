@@ -13,7 +13,7 @@ async function migrate() {
   }
 
   console.log('\n======================================================');
-  console.log('🚀 Quaders Database Migration & Table Setup');
+  console.log('🚀 queflow Database Migration & Table Setup');
   console.log('======================================================');
   console.log(`📡 Target Database URL: ${databaseUrl.replace(/:[^:@]+@/, ':***@')}`);
 
@@ -46,7 +46,7 @@ async function migrate() {
     console.log('✅ All tables, enums, unique constraints, and indexes created successfully!\n');
 
     // 2. Ensure Super Admin user exists
-    const superAdminEmail = 'info.quaders@gmail.com';
+    const superAdminEmail = 'info.queflow@gmail.com';
     const rawPassword = 'Quad@1010';
     const name = 'Super Administrator';
 
@@ -93,7 +93,7 @@ async function migrate() {
     if (err.stack) console.error(err.stack);
     process.exitCode = 1;
   } finally {
-    await client.end().catch(() => {});
+    await client.end().catch(() => { });
   }
 }
 

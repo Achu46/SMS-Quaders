@@ -1,5 +1,5 @@
 -- =============================================================================
--- Quaders School Management System - Master Database Schema Initialization
+-- queflow School Management System - Master Database Schema Initialization
 -- Compatible with PostgreSQL (Railway, Supabase, Neon, AWS RDS, Localhost)
 -- All statements are idempotent (safe to run multiple times without data loss)
 -- =============================================================================
@@ -955,7 +955,7 @@ ON CONFLICT ("id") DO UPDATE SET
 INSERT INTO "superadmin" ("id", "email", "password", "name", "role", "status", "createdAt", "updatedAt")
 VALUES (
   'superadmin-primary-001',
-  'info.quaders@gmail.com',
+  'info.queflow@gmail.com',
   '$2b$10$T8ZzK1P/F6tSkmB9QnB3Ue3.V0p.J4eR4o8QyE3W3G9T2aU7a6tVq',
   'Super Administrator',
   'SUPER_ADMIN',
@@ -972,7 +972,7 @@ ON CONFLICT ("email") DO UPDATE SET
 INSERT INTO "User" ("id", "email", "password", "name", "role", "status", "createdAt", "updatedAt")
 VALUES (
   'superadmin-primary-001',
-  'info.quaders@gmail.com',
+  'info.queflow@gmail.com',
   '$2b$10$T8ZzK1P/F6tSkmB9QnB3Ue3.V0p.J4eR4o8QyE3W3G9T2aU7a6tVq',
   'Super Administrator',
   'SUPER_ADMIN',

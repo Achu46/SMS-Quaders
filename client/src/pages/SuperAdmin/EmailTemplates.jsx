@@ -27,21 +27,21 @@ const TEMPLATES = [
 ];
 
 const DEFAULT_TEMPLATES = {
-  welcomeSubject: 'Welcome to Quaders Education OS',
+  welcomeSubject: 'Welcome to queflow Education OS',
   welcomeHtml: `<h2>Hello {{userName}},</h2>
 <p>Your account has been successfully created as a <strong>{{role}}</strong>.</p>
 <p>Click the link below to access your school portal:</p>
 <p><a href="{{loginUrl}}" target="_blank">Access Portal</a></p>`,
 
   forgotPasswordSubject: 'Password Reset Request',
-  forgotPasswordHtml: `<p>We received a request to reset your Quaders account password.</p>
+  forgotPasswordHtml: `<p>We received a request to reset your queflow account password.</p>
 <p>Click the link below to securely reset your credentials:</p>
 <p><a href="{{resetLink}}" target="_blank">Reset Password</a></p>
 <p>This security link will expire in 24 hours.</p>`,
 
   approvalSubject: 'Your School Account is Approved!',
   approvalHtml: `<h2>Congratulations, {{schoolName}}!</h2>
-<p>Your tenant registration for the Quaders School Management System has been approved by the Super Admin.</p>
+<p>Your tenant registration for the queflow School Management System has been approved by the Super Admin.</p>
 <p>You can now log in and configure your academic year, classes, and roles.</p>
 <p><a href="{{dashboardLink}}" target="_blank">Open Admin Dashboard</a></p>`
 };
@@ -63,11 +63,11 @@ export default function EmailTemplates() {
       if (res && res.data) {
         setFormData({ ...DEFAULT_TEMPLATES, ...res.data });
       } else {
-        const local = localStorage.getItem('quaders_email_templates');
+        const local = localStorage.getItem('queflow_email_templates');
         if (local) setFormData({ ...DEFAULT_TEMPLATES, ...JSON.parse(local) });
       }
     } catch (error) {
-      const local = localStorage.getItem('quaders_email_templates');
+      const local = localStorage.getItem('queflow_email_templates');
       if (local) {
         setFormData({ ...DEFAULT_TEMPLATES, ...JSON.parse(local) });
       } else {
@@ -82,10 +82,10 @@ export default function EmailTemplates() {
     setSaving(true);
     try {
       await api.put('/schools/global/collections/email_templates/default', formData);
-      localStorage.setItem('quaders_email_templates', JSON.stringify(formData));
+      localStorage.setItem('queflow_email_templates', JSON.stringify(formData));
       toast.success("Email templates saved successfully!");
     } catch (error) {
-      localStorage.setItem('quaders_email_templates', JSON.stringify(formData));
+      localStorage.setItem('queflow_email_templates', JSON.stringify(formData));
       toast.success("Templates saved to local session!");
     } finally {
       setSaving(false);
@@ -124,7 +124,7 @@ export default function EmailTemplates() {
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleSave}
           disabled={saving}
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-700 hover:to-amber-600 text-white font-bold text-sm shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 transition-all duration-200 disabled:opacity-50 shrink-0"
@@ -143,17 +143,15 @@ export default function EmailTemplates() {
             <button
               key={template.id}
               onClick={() => setActiveTab(template.id)}
-              className={`w-full text-left p-3.5 rounded-2xl font-bold transition-all flex items-center gap-3.5 ${
-                activeTab === template.id 
-                  ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 border border-orange-500/30 shadow-md shadow-orange-500/10' 
+              className={`w-full text-left p-3.5 rounded-2xl font-bold transition-all flex items-center gap-3.5 ${activeTab === template.id
+                  ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 border border-orange-500/30 shadow-md shadow-orange-500/10'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 border border-transparent'
-              }`}
+                }`}
             >
-              <div className={`p-2 rounded-xl transition-colors ${
-                activeTab === template.id 
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30' 
+              <div className={`p-2 rounded-xl transition-colors ${activeTab === template.id
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
                   : 'bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-              }`}>
+                }`}>
                 <LuMail size={18} />
               </div>
               <div className="min-w-0">
@@ -178,12 +176,12 @@ export default function EmailTemplates() {
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Email Subject Line
             </label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={formData[`${activeTab}Subject`] || ''}
               onChange={(e) => handleChange(`${activeTab}Subject`, e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-xl text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
-              placeholder="e.g. Welcome to Quaders Platform"
+              placeholder="e.g. Welcome to queflow Platform"
             />
           </div>
 
@@ -193,14 +191,14 @@ export default function EmailTemplates() {
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
                 <LuCode className="text-orange-500" /> HTML Content Template
               </label>
-              
+
               {/* Variable Chips */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[11px] font-bold text-slate-400 mr-1">Variables:</span>
                 {activeTemplate.variables.map(v => (
-                  <span 
-                    key={v} 
-                    className="px-2 py-0.5 bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/40 text-xs font-mono font-bold rounded-lg cursor-pointer hover:bg-orange-100 transition-colors" 
+                  <span
+                    key={v}
+                    className="px-2 py-0.5 bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/40 text-xs font-mono font-bold rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
                     title="Click to copy"
                     onClick={() => {
                       navigator.clipboard.writeText(v);
@@ -212,7 +210,7 @@ export default function EmailTemplates() {
                 ))}
               </div>
             </div>
-            
+
             <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-inner">
               <ReactQuill
                 theme="snow"
@@ -222,7 +220,7 @@ export default function EmailTemplates() {
                   toolbar: [
                     [{ 'header': [1, 2, 3, false] }],
                     ['bold', 'italic', 'underline', 'strike'],
-                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                     ['link', 'clean']
                   ],
                 }}

@@ -6,7 +6,7 @@ import { LuSun, LuMoon, LuMenu, LuX } from 'react-icons/lu';
 export default function Nav({ scrollToSection }) {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   // Hardcode dark mode for now as default if there's no context, 
   // but let's manage a local state or read from document.documentElement
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains('dark') || true);
@@ -28,10 +28,10 @@ export default function Nav({ scrollToSection }) {
 
   return (
     <>
-      <motion.nav 
-        style={{ 
-          backgroundColor: navBg, 
-          backdropFilter: navBackdrop, 
+      <motion.nav
+        style={{
+          backgroundColor: navBg,
+          backdropFilter: navBackdrop,
           borderBottomColor: navBorder,
           borderBottomWidth: '1px',
           paddingTop: navPy,
@@ -41,14 +41,14 @@ export default function Nav({ scrollToSection }) {
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => scrollToSection('home')}>
-            {/* Quaders Logo Image */}
-            <img 
-              src="/logo.png" 
-              alt="Quaders Logo" 
-              className="w-auto h-12 md:h-16 object-contain group-hover:scale-105 transition-transform" 
+            {/* queflow Logo Image */}
+            <img
+              src="/logo.png"
+              alt="queflow Logo"
+              className="w-auto h-12 md:h-16 object-contain group-hover:scale-105 transition-transform"
             />
           </div>
-          
+
           <div className="hidden md:flex gap-8 items-center font-medium text-slate-500 dark:text-[#94a3b8]">
             <button onClick={() => scrollToSection('home')} className="hover:text-primary-500 dark:hover:text-primary-400 transition-colors">Home</button>
             <button onClick={() => scrollToSection('services')} className="hover:text-primary-500 dark:hover:text-primary-400 transition-colors">Services</button>
@@ -57,7 +57,7 @@ export default function Nav({ scrollToSection }) {
 
           <div className="hidden md:flex gap-4 items-center">
             {/* Theme Toggle */}
-            <button 
+            <button
               onClick={toggleTheme}
               className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
@@ -88,13 +88,13 @@ export default function Nav({ scrollToSection }) {
               </AnimatePresence>
             </button>
 
-            <button 
+            <button
               onClick={() => navigate('/login')}
               className="px-5 py-2.5 font-bold text-slate-600 dark:text-[#94a3b8] hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               Log in
             </button>
-            <button 
+            <button
               onClick={() => navigate('/register')}
               className="px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-400 text-white font-bold rounded-full hover:scale-105 transition-all duration-300 shadow-[0_0_20px_rgba(249,115,22,0.3)]"
             >
@@ -111,7 +111,7 @@ export default function Nav({ scrollToSection }) {
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -124,7 +124,7 @@ export default function Nav({ scrollToSection }) {
               Toggle Theme {isDark ? <LuSun /> : <LuMoon />}
             </button>
             <button onClick={() => navigate('/login')} className="text-2xl font-bold text-slate-500 dark:text-[#94a3b8] hover:text-slate-900 dark:hover:text-white mt-4">Log in</button>
-            <button 
+            <button
               onClick={() => {
                 setIsMobileMenuOpen(false);
                 navigate('/register');

@@ -9,7 +9,7 @@ const { Server } = require('socket.io');
 
 dotenv.config();
 
-const rawClientUrls = process.env.CLIENT_URL 
+const rawClientUrls = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',').map(u => u.trim()).filter(Boolean)
   : [];
 const isProduction = process.env.NODE_ENV === 'production';
@@ -62,8 +62,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Socket.io Authentication Middleware
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token || 
-    (socket.handshake.headers?.authorization && socket.handshake.headers.authorization.split(' ')[1]) || 
+  const token = socket.handshake.auth?.token ||
+    (socket.handshake.headers?.authorization && socket.handshake.headers.authorization.split(' ')[1]) ||
     socket.handshake.query?.token;
 
   if (!token) {
@@ -86,7 +86,7 @@ io.use((socket, next) => {
 // Socket.io for Real-Time (Leaves, Fees, Attendance)
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id} (user: ${socket.user?.id || 'anonymous'})`);
-  
+
   socket.on('join_tenant', (payload) => {
     const schoolId = typeof payload === 'object' && payload !== null ? payload.schoolId : payload;
     const providedToken = typeof payload === 'object' && payload !== null ? payload.token : null;
@@ -157,7 +157,7 @@ const reportCardTemplateRoutes = require('./routes/reportCardTemplates');
 const livenessHandler = (req, res) => {
   res.status(200).json({
     status: 'ok',
-    message: 'Quaders API is running',
+    message: 'queflow API is running',
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString()
   });
@@ -183,7 +183,7 @@ const readinessHandler = async (req, res) => {
 };
 
 app.get('/', (req, res) => {
-  res.status(200).json({ status: 'ok', name: 'Quaders Backend API', time: new Date().toISOString() });
+  res.status(200).json({ status: 'ok', name: 'queflow Backend API', time: new Date().toISOString() });
 });
 app.get('/health', livenessHandler);
 app.get('/api/health', livenessHandler);
@@ -246,5 +246,5 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Quaders server running on port ${PORT}`);
+  console.log(`queflow server running on port ${PORT}`);
 });

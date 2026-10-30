@@ -4,7 +4,7 @@ import Hero from '../components/landing/Hero';
 import TrustBar from '../components/landing/TrustBar';
 import CoreWorkflows from '../components/landing/CoreWorkflows';
 import Pricing from '../components/landing/Pricing';
-import WhyQuaders from '../components/landing/WhyQuaders';
+import Whyqueflow from '../components/landing/WhyQuaders';
 import FinalCTA from '../components/landing/FinalCTA';
 import Footer from '../components/landing/Footer';
 
@@ -34,13 +34,13 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-[#f1f5f9] font-sans selection:bg-primary-500 selection:text-white overflow-x-hidden transition-colors duration-300">
       <Nav scrollToSection={scrollToSection} />
-      
+
       <main>
         <Hero scrollToSection={scrollToSection} />
         <TrustBar />
         <CoreWorkflows />
         <Pricing />
-        <WhyQuaders />
+        <Whyqueflow />
         <FinalCTA />
       </main>
 

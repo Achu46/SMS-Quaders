@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  LuSparkles as Sparkles, 
-  LuBot as Bot, 
-  LuShieldCheck as ShieldCheck, 
-  LuZap as Zap, 
-  LuTable as Table, 
+import {
+  LuSparkles as Sparkles,
+  LuBot as Bot,
+  LuShieldCheck as ShieldCheck,
+  LuZap as Zap,
+  LuTable as Table,
   LuArrowRight as ArrowRight,
   LuCheck as Check,
   LuUsers as Users,
@@ -86,7 +86,7 @@ export default function AIAssistantHighlight() {
             Next-Gen School Intelligence
           </motion.div>
 
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -96,7 +96,7 @@ export default function AIAssistantHighlight() {
             Meet the <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">AI Assistant</span> for Modern Schools
           </motion.h2>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -114,31 +114,28 @@ export default function AIAssistantHighlight() {
             <div className="p-1.5 rounded-2xl bg-slate-800/80 border border-slate-700/80 p-1 flex gap-1">
               <button
                 onClick={() => setActiveTab('attendance')}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'attendance'
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'attendance'
                     ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <Users size={14} /> Attendance
               </button>
               <button
                 onClick={() => setActiveTab('fees')}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'fees'
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'fees'
                     ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <CreditCard size={14} /> Fee Dues
               </button>
               <button
                 onClick={() => setActiveTab('exams')}
-                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'exams'
+                className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'exams'
                     ? 'bg-gradient-to-r from-orange-600 to-amber-500 text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <TrendingUp size={14} /> Exam Analytics
               </button>
@@ -187,7 +184,7 @@ export default function AIAssistantHighlight() {
               onClick={() => navigate('/login')}
               className="w-full mt-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 hover:from-orange-500 hover:to-amber-500 text-white text-sm font-bold shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 group transition-all"
             >
-              <span>Try Quaders AI Assistant</span>
+              <span>Try queflow AI Assistant</span>
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
@@ -202,7 +199,7 @@ export default function AIAssistantHighlight() {
                     <Sparkles size={16} />
                   </div>
                   <div>
-                    <span className="text-sm font-bold text-white">Quaders AI Assistant</span>
+                    <span className="text-sm font-bold text-white">queflow AI Assistant</span>
                     <span className="ml-2 text-[10px] uppercase font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
                       Live ERP
                     </span>
