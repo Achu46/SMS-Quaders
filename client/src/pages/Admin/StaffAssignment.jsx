@@ -108,7 +108,10 @@ export default function StaffAssignment() {
 
     try {
       // Generate or retrieve active invite URL
-      const genRes = await api.post(`/staff/${staffId}/invite`);
+      const genRes = await api.post(`/staff/${staffId}/invite`, {
+        email: staffEmail,
+        employeeId: staffEmpId
+      });
       setInviteModal(prev => ({
         ...prev,
         inviteUrl: genRes.inviteUrl,
@@ -127,7 +130,10 @@ export default function StaffAssignment() {
     if (!inviteModal.staffId) return;
     setInviteModal(prev => ({ ...prev, loading: true }));
     try {
-      const res = await api.post(`/staff/${inviteModal.staffId}/invite`);
+      const res = await api.post(`/staff/${inviteModal.staffId}/invite`, {
+        email: inviteModal.staffEmail,
+        employeeId: inviteModal.staffEmpId
+      });
       setInviteModal(prev => ({
         ...prev,
         inviteUrl: res.inviteUrl,
@@ -1219,7 +1225,9 @@ export default function StaffAssignment() {
                   const name = member.name || `${member.firstName} ${member.lastName}`;
                   const isAssigned = !!member.assignedClassId;
                   const backendUser = (member.userId && backendStaffMap[member.userId]) || (member.email && backendStaffMap[member.email?.toLowerCase()]) || (member.staffId && backendStaffMap[member.staffId]);
-                  const staffStatus = (backendUser?.status || member.status || 'INVITED').toUpperCase();
+                  const hasRegisteredPassword = backendUser?.hasPassword ?? (backendUser?.password ? true : false);
+                  const isInvitedOrUnregistered = !hasRegisteredPassword || (backendUser?.status || member.status || 'INVITED').toUpperCase() === 'INVITED';
+                  const staffStatus = isInvitedOrUnregistered ? 'INVITED' : (backendUser?.status || member.status || 'ACTIVE').toUpperCase();
 
                   return (
                     <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
@@ -1278,19 +1286,20 @@ export default function StaffAssignment() {
                       </td>
                       <td className="p-4 pr-6 text-right">
                         <div className="flex justify-end gap-2">
-                          {staffStatus === 'INVITED' ? (
+                          {isInvitedOrUnregistered ? (
                             <button
                               onClick={() => openInviteModal(member)}
-                              className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              title="Registration Invite Link"
+                              className="px-2.5 py-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/40 border border-orange-200 dark:border-orange-800/60 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                              title="Staff Password Not Registered - Click to View/Copy Registration Link"
                             >
-                              <LinkIcon size={18} />
+                              <LinkIcon size={15} className="text-orange-600 dark:text-orange-400 shrink-0" />
+                              <span className="hidden sm:inline">Invite Link</span>
                             </button>
                           ) : (
                             <button
-                              disabled
-                              className="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed rounded-lg"
-                              title="Already registered"
+                              onClick={() => openInviteModal(member)}
+                              className="p-2 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Staff Already Registered - Click to Re-share / Regenerate Link"
                             >
                               <LinkIcon size={18} />
                             </button>

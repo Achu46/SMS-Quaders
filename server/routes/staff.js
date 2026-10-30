@@ -41,6 +41,7 @@ router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
         phone: true,
         employeeId: true,
         status: true,
+        password: true,
         roleId: true,
         customRole: {
           select: {
@@ -69,7 +70,8 @@ router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json(staffList);
+    const sanitized = staffList.map(({ password, ...s }) => ({ ...s, hasPassword: Boolean(password) }));
+    res.json(sanitized);
   } catch (error) {
     console.error('Fetch staff error:', error);
     res.status(500).json({ error: 'Failed to fetch staff members' });
@@ -161,7 +163,17 @@ router.post('/:id/invite', requirePermission('staff', 'EDIT'), async (req, res) 
     const { sendEmail } = req.body || {};
 
     const staff = await prisma.user.findFirst({
-      where: { id: staffId, schoolId: collegeId, role: 'STAFF' },
+      where: {
+        schoolId: collegeId,
+        role: 'STAFF',
+        OR: [
+          { id: staffId },
+          { email: staffId.toLowerCase() },
+          { employeeId: staffId },
+          ...(req.body?.email ? [{ email: req.body.email.toLowerCase() }] : []),
+          ...(req.body?.employeeId ? [{ employeeId: req.body.employeeId }] : [])
+        ]
+      },
       include: {
         school: true,
         customRole: true
@@ -176,8 +188,27 @@ router.post('/:id/invite', requirePermission('staff', 'EDIT'), async (req, res) 
       return res.status(400).json({ error: 'Cannot generate an invite for a deactivated staff member' });
     }
 
-    if (staff.status === 'ACTIVE') {
-      return res.status(400).json({ error: 'Staff member has already registered and is ACTIVE' });
+    // Allow generating/regenerating invite link; set status to INVITED and reset password
+    if (staff.status !== 'INVITED' || staff.password !== null) {
+      await prisma.user.update({
+        where: { id: staff.id },
+        data: { status: 'INVITED', password: null }
+      });
+      try {
+        const teacherDocs = await prisma.schoolDocument.findMany({
+          where: { schoolId: collegeId, collection: 'teachers' }
+        });
+        for (const tDoc of teacherDocs) {
+          if (tDoc.data && (tDoc.data.email?.toLowerCase() === staff.email.toLowerCase() || tDoc.data.userId === staff.id)) {
+            await prisma.schoolDocument.update({
+              where: { id: tDoc.id },
+              data: { data: { ...tDoc.data, status: 'Invited' } }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Teacher document status sync warning:', e.message);
+      }
     }
 
     if (staff.school?.status !== 'ACTIVE') {

@@ -1,5 +1,6 @@
 const EmbeddedPostgres = require('embedded-postgres').default;
 const path = require('path');
+const fs = require('fs');
 const net = require('net');
 
 function isPortOpen(port, host = '127.0.0.1') {
@@ -38,7 +39,10 @@ async function startLocalDatabase() {
     persistent: true
   });
 
-  await pg.initialise();
+  const isInitialized = fs.existsSync(path.join(dataDir, 'PG_VERSION'));
+  if (!isInitialized) {
+    await pg.initialise();
+  }
   await pg.start();
 
   try {
@@ -67,4 +71,3 @@ if (require.main === module) {
     process.exit(1);
   });
 }
-
