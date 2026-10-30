@@ -1,7 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { z } = require('zod');
-const { authenticateToken, requireActiveSchool, requireAcademicSetup, requireRole } = require('../middleware');
+const { 
+  authenticateToken, 
+  requireActiveSchool, 
+  requireAcademicSetup, 
+  requireRole, 
+  invalidateRoleCache 
+} = require('../middleware');
 
 const MODULE_CATALOG = [
   { id: 'attendance', label: 'Attendance Management', actions: ['VIEW', 'CREATE', 'EDIT', 'DELETE'] },
@@ -142,7 +148,8 @@ router.post('/', async (req, res) => {
         data: {
           collegeId,
           name,
-          description: description || null
+          description: description || null,
+          permissionsVersion: 1
         }
       });
 
@@ -165,6 +172,18 @@ router.post('/', async (req, res) => {
       });
     });
 
+    // Invalidate cache and broadcast to tenant
+    invalidateRoleCache(newRole.id);
+    if (req.io) {
+      req.io.to(collegeId).emit('permissions-updated', {
+        schoolId: collegeId,
+        roleId: newRole.id,
+        roleName: newRole.name,
+        permissionsVersion: newRole.permissionsVersion,
+        type: 'ROLE_CREATED'
+      });
+    }
+
     res.status(201).json(newRole);
   } catch (error) {
     console.error('Create role error:', error);
@@ -173,7 +192,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/roles/:roleId
-// Update an existing role's name, description, and module permissions
+// Update an existing role in-place with upserts and version increment
 router.put('/:roleId', async (req, res) => {
   try {
     const prisma = req.prisma;
@@ -214,26 +233,53 @@ router.put('/:roleId', async (req, res) => {
       }
     }
 
+    // In-place transaction update
     const updatedRole = await prisma.$transaction(async (tx) => {
+      // 1. Update role name/description and increment permissionsVersion in place
       await tx.role.update({
         where: { id: roleId },
         data: {
           ...(name ? { name } : {}),
-          ...(description !== undefined ? { description } : {})
+          ...(description !== undefined ? { description } : {}),
+          permissionsVersion: { increment: 1 }
         }
       });
 
       if (permissions && Array.isArray(permissions)) {
-        // Delete old permissions and insert fresh
-        await tx.rolePermission.deleteMany({
+        // Fetch current permission rows for this role
+        const currentPerms = await tx.rolePermission.findMany({
           where: { roleId }
         });
 
+        const payloadKeys = new Set(permissions.map(p => p.moduleKey.trim()));
+
+        // Delete removed modules
+        const toDelete = currentPerms.filter(cp => !payloadKeys.has(cp.moduleKey));
+        if (toDelete.length > 0) {
+          await tx.rolePermission.deleteMany({
+            where: { id: { in: toDelete.map(d => d.id) } }
+          });
+        }
+
+        // Upsert changed permission rows by (roleId, moduleKey) in place
         for (const p of permissions) {
-          await tx.rolePermission.create({
-            data: {
+          const mKey = p.moduleKey.trim();
+          await tx.rolePermission.upsert({
+            where: {
+              roleId_moduleKey: {
+                roleId,
+                moduleKey: mKey
+              }
+            },
+            update: {
+              canCreate: p.canCreate || false,
+              canRead: p.canRead || false,
+              canUpdate: p.canUpdate || false,
+              canDelete: p.canDelete || false
+            },
+            create: {
               roleId,
-              moduleKey: p.moduleKey.trim(),
+              moduleKey: mKey,
               canCreate: p.canCreate || false,
               canRead: p.canRead || false,
               canUpdate: p.canUpdate || false,
@@ -249,6 +295,20 @@ router.put('/:roleId', async (req, res) => {
       });
     });
 
+    // Invalidate server cache
+    invalidateRoleCache(roleId);
+
+    // Broadcast real-time permissions update to all connected sessions in tenant room
+    if (req.io) {
+      req.io.to(collegeId).emit('permissions-updated', {
+        schoolId: collegeId,
+        roleId,
+        roleName: updatedRole.name,
+        permissionsVersion: updatedRole.permissionsVersion,
+        type: 'ROLE_UPDATED'
+      });
+    }
+
     res.json({ message: 'Role updated successfully', role: updatedRole });
   } catch (error) {
     console.error('Update role error:', error);
@@ -257,7 +317,7 @@ router.put('/:roleId', async (req, res) => {
 });
 
 // DELETE /api/roles/:roleId
-// Delete a role - BLOCKED if staff members are currently assigned
+// Delete a role - BLOCKED with 409 Conflict if staff members are currently assigned
 router.delete('/:roleId', async (req, res) => {
   try {
     const prisma = req.prisma;
@@ -276,14 +336,26 @@ router.delete('/:roleId', async (req, res) => {
     }
 
     if (role._count.users > 0) {
-      return res.status(400).json({
-        error: `Cannot delete role '${role.name}' because it is assigned to ${role._count.users} staff member(s). Reassign them first.`
+      return res.status(409).json({
+        error: `Cannot delete role '${role.name}' because it is assigned to ${role._count.users} staff member(s). Reassign them first.`,
+        count: role._count.users
       });
     }
 
     await prisma.role.delete({
       where: { id: roleId }
     });
+
+    // Invalidate server cache
+    invalidateRoleCache(roleId);
+
+    if (req.io) {
+      req.io.to(collegeId).emit('permissions-updated', {
+        schoolId: collegeId,
+        roleId,
+        type: 'ROLE_DELETED'
+      });
+    }
 
     res.json({ message: 'Role deleted successfully' });
   } catch (error) {

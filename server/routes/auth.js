@@ -199,9 +199,9 @@ router.post('/register-school', async (req, res) => {
 
     // Generate JWT with initial claims
     const token = jwt.sign(
-      { 
-        id: result.user.id, 
-        role: result.user.role, 
+      {
+        id: result.user.id,
+        role: result.user.role,
         schoolId: result.school.id,
         schoolStatus: result.school.status,
         setupCompleted: result.school.setupCompleted,
@@ -356,22 +356,30 @@ router.post('/login', loginLimiter, async (req, res) => {
         staffRole: true
       }
     });
-    
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    if (user.status === 'INVITED') {
-      return res.status(403).json({ error: 'Please complete your registration using the link shared by your admin.' });
-    }
-
     if (!user.password) {
+      if (user.status === 'INVITED') {
+        return res.status(403).json({ error: 'Please complete your registration using the link shared by your admin.' });
+      }
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // If staff had a valid password and was in INVITED status, auto-activate them
+    if (user.status === 'INVITED') {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'ACTIVE' }
+      });
+      user.status = 'ACTIVE';
     }
 
     const schoolStatus = user.school ? user.school.status : (user.role === 'SUPER_ADMIN' ? 'ACTIVE' : null);
@@ -386,15 +394,16 @@ router.post('/login', loginLimiter, async (req, res) => {
       permissions = extractPermissions(user.customRole, user.staffRole);
     }
 
+    const permissionsVersion = user.customRole ? (user.customRole.permissionsVersion || 1) : 1;
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        role: user.role, 
+      {
+        id: user.id,
+        role: user.role,
         schoolId: user.schoolId,
         schoolStatus,
         setupCompleted,
-        staffRoleId: user.staffRoleId,
-        permissions
+        roleId: user.roleId,
+        permissionsVersion
       },
       process.env.JWT_SECRET || 'secret-key-for-dev',
       { expiresIn: '7d' }
@@ -508,18 +517,14 @@ router.post('/login-admission', loginLimiter, async (req, res) => {
   }
 });
 
-// GET /api/auth/profile
-// Current session profile
-router.get('/profile', authenticateToken, async (req, res) => {
+// Handler for current user session profile (/api/auth/me & /api/auth/profile)
+async function getSessionProfileHandler(req, res) {
   try {
     const prisma = req.prisma;
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       include: {
         school: true,
-        customRole: {
-          include: { permissions: true }
-        },
         customRole: {
           include: { permissions: true }
         },
@@ -542,18 +547,25 @@ router.get('/profile', authenticateToken, async (req, res) => {
       permissions = extractPermissions(user.customRole, user.staffRole);
     }
 
-    // Self-heal outdated JWT tokens
+    const permissionsVersion = user.customRole ? (user.customRole.permissionsVersion || 1) : 1;
+
+    // Self-heal outdated JWT tokens when role, permissionsVersion, or school status changed
     let freshToken = null;
-    if (req.user.schoolStatus !== schoolStatus || req.user.setupCompleted !== setupCompleted) {
+    if (
+      req.user.schoolStatus !== schoolStatus ||
+      req.user.setupCompleted !== setupCompleted ||
+      req.user.roleId !== user.roleId ||
+      req.user.permissionsVersion !== permissionsVersion
+    ) {
       freshToken = jwt.sign(
-        { 
-          id: user.id, 
-          role: user.role, 
+        {
+          id: user.id,
+          role: user.role,
           schoolId: user.schoolId,
           schoolStatus,
           setupCompleted,
-          staffRoleId: user.staffRoleId,
-          permissions
+          roleId: user.roleId,
+          permissionsVersion
         },
         process.env.JWT_SECRET || 'secret-key-for-dev',
         { expiresIn: '7d' }
@@ -565,12 +577,14 @@ router.get('/profile', authenticateToken, async (req, res) => {
     res.json({
       ...userWithoutPassword,
       role: user.role.toLowerCase(),
+      roleId: user.roleId,
       schoolStatus,
       setupCompleted,
       academicSetupCompleted,
       permissions,
       rolePermissions: permissions,
       customRole: user.customRole,
+      permissionsVersion,
       ...parentData,
       ...(freshToken ? { token: freshToken } : {})
     });
@@ -578,7 +592,13 @@ router.get('/profile', authenticateToken, async (req, res) => {
     console.error('Profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}
+
+// GET /api/auth/me (Standard user profile endpoint)
+router.get('/me', authenticateToken, getSessionProfileHandler);
+
+// GET /api/auth/profile (Backward compatibility alias)
+router.get('/profile', authenticateToken, getSessionProfileHandler);
 
 // GET /api/auth/school-status/:schoolId
 // Polling endpoint for tenant status checking
@@ -615,7 +635,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
     const standardMessage = 'If this email is registered, password reset instructions have been sent.';
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-    
+
     // Constant time/generic response if user does not exist (prevents enumeration)
     if (!user) {
       return res.json({ message: standardMessage });
@@ -647,7 +667,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     } else {
       console.log(`[AUTH] Password reset token generated for user id: ${user.id}`);
     }
-    
+
     const responsePayload = { message: standardMessage };
     if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
       responsePayload.devResetToken = rawToken;

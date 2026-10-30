@@ -35,6 +35,14 @@ class ApiClient {
     try {
       const response = await fetch(url, config);
 
+      // Check for X-Permissions-Changed header or 403 response
+      const permChangedHeader = response.headers.get('X-Permissions-Changed');
+      if (permChangedHeader === 'true' || response.status === 403) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('quaders:permissions_changed'));
+        }
+      }
+
       if (response.status === 401) {
         // Unauthorized token expired
         this.setToken(null);
@@ -48,7 +56,8 @@ class ApiClient {
           path.startsWith('/sign-up') ||
           path.startsWith('/admission') || 
           path.startsWith('/apply') || 
-          path.startsWith('/leads');
+          path.startsWith('/leads') ||
+          path.startsWith('/staff/register');
 
         if (!isPublicPath) {
           window.location.href = '/login';

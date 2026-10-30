@@ -74,7 +74,7 @@ class StorageService {
       return true;
     }
     return Boolean(
-      process.env.CLOUDINARY_URL || 
+      process.env.CLOUDINARY_URL ||
       (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
     );
   }
@@ -158,7 +158,7 @@ class StorageService {
       const formData = new URLSearchParams();
       formData.append('file', base64Data);
       formData.append('upload_preset', uploadPreset);
-      formData.append('folder', `quaders/${safeSchoolId}/${safeFolder}`);
+      formData.append('folder', `queflow/${safeSchoolId}/${safeFolder}`);
 
       const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
         method: 'POST',
@@ -175,7 +175,7 @@ class StorageService {
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
     if (apiKey && apiSecret) {
       const timestamp = Math.floor(Date.now() / 1000);
-      const folderPath = `quaders/${safeSchoolId}/${safeFolder}`;
+      const folderPath = `queflow/${safeSchoolId}/${safeFolder}`;
       const toSign = `folder=${folderPath}&timestamp=${timestamp}${apiSecret}`;
       const signature = crypto.createHash('sha1').update(toSign).digest('hex');
 

@@ -8,7 +8,7 @@ const BASE_URL = 'http://localhost:5173'; // Make sure your Vite server is runni
 
 // IMPORTANT: Replace these with your actual test credentials for each role
 const CREDENTIALS = {
-  superadmin: { email: 'admin@quaders.com', password: 'Cgs@001a' },
+  superadmin: { email: 'admin@queflow.com', password: 'Cgs@001a' },
   admin: { email: 'virat@abc.com', password: 'Virat@123' },
   teacher: { email: 'pavithran@gmail.com', password: 'Pavi@123' },
   parent: { email: 'pavithran@abc.com', password: 'Pavithran@122' }
@@ -88,7 +88,7 @@ const ROUTES = {
 async function login(driver, role) {
   console.log(`\n🔑 Logging in as ${role}...`);
   await driver.get(`${BASE_URL}/login`);
-  
+
   // Wait for email field
   const emailInput = await driver.wait(until.elementLocated(By.name('identifier')), 5000);
   const passwordInput = await driver.findElement(By.name('password'));
@@ -96,13 +96,13 @@ async function login(driver, role) {
 
   await emailInput.clear();
   await emailInput.sendKeys(CREDENTIALS[role].email);
-  
+
   await passwordInput.clear();
   await passwordInput.sendKeys(CREDENTIALS[role].password, '\n');
-  
+
   try {
     // Wait for login to complete by waiting for URL to change away from /login
-    await driver.wait(async function() {
+    await driver.wait(async function () {
       const url = await driver.getCurrentUrl();
       return !url.includes('/login');
     }, 10000);
@@ -113,8 +113,8 @@ async function login(driver, role) {
       const errorEl = await driver.findElement(By.css('.text-red-500'));
       const errText = await errorEl.getText();
       console.error(`Frontend Error Message: "${errText}"`);
-    } catch (e) {}
-    
+    } catch (e) { }
+
     // Take a screenshot of the login page to see what's wrong
     const base64Image = await driver.takeScreenshot();
     fs.writeFileSync(`login_failed_${role}.png`, base64Image, 'base64');
@@ -125,27 +125,27 @@ async function login(driver, role) {
 async function takeScreenshot(driver, urlPath, title, pdfDoc, isFirstPage) {
   console.log(`📸 Capturing: ${urlPath}`);
   await driver.get(`${BASE_URL}${urlPath}`);
-  
+
   // Sleep to allow Suspense, loaders, and network requests to finish
   await driver.sleep(3000);
-  
+
   const base64Image = await driver.takeScreenshot();
-  
+
   if (!isFirstPage) {
     pdfDoc.addPage();
   }
-  
+
   // Add title text
   pdfDoc.setFontSize(16);
   pdfDoc.text(title, 10, 15);
-  
+
   // Add the screenshot image
   pdfDoc.addImage(base64Image, 'PNG', 10, 20, 190, 260); // A4 roughly fits this
 }
 
 async function generatePDF() {
   console.log('🚀 Starting screenshot automation...');
-  
+
   // Create jsPDF instance (A4 Portrait)
   const pdfDoc = new jsPDF({ orientation: 'portrait', format: 'a4' });
   let isFirstPage = true;

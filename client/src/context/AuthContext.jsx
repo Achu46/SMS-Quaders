@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getUserProfile, getToken, setToken } from '../services/auth';
-import { CacheService } from '../services/CacheService';
+import { socket } from '../firebase/config';
 
 const AuthContext = createContext();
 
@@ -9,9 +9,32 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null); // Just stores { uid, ... } to match old firebase shape somewhat
+  const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const updateProfileData = useCallback(async (overrides = null) => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      if (overrides) {
+        setUserProfile(prev => ({ ...(prev || {}), ...overrides }));
+        return;
+      }
+      
+      const profile = await getUserProfile();
+      if (profile) {
+        if (profile.token) {
+          setToken(profile.token);
+        }
+        setCurrentUser({ uid: profile.id, email: profile.email });
+        setUserProfile({ ...profile, uid: profile.id });
+      }
+    } catch (error) {
+      console.error("Error refreshing profile", error);
+    }
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -24,10 +47,6 @@ export const AuthProvider = ({ children }) => {
     }
 
     const initAuth = async () => {
-      // 1. Optimistic Cache Load
-      // We don't have user.uid immediately from token without decoding, 
-      // but we can just use a generic key or decode JWT manually.
-      // For now, let's just fetch the profile.
       try {
         const profile = await getUserProfile();
         if (profile) {
@@ -53,23 +72,42 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
-  const updateProfileData = async () => {
-    try {
+  // 1. Window focus refetch: refreshes session whenever user switches back to tab
+  useEffect(() => {
+    const handleFocus = () => {
       const token = getToken();
-      if (!token) return;
-      
-      const profile = await getUserProfile();
-      if (profile) {
-        if (profile.token) {
-          setToken(profile.token);
-        }
-        setCurrentUser({ uid: profile.id, email: profile.email });
-        setUserProfile({ ...profile, uid: profile.id });
+      if (token) {
+        updateProfileData();
       }
-    } catch (error) {
-      console.error("Error refreshing profile", error);
-    }
-  };
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [updateProfileData]);
+
+  // 2. Custom event listener triggered on 403 or X-Permissions-Changed response header
+  useEffect(() => {
+    const handlePermChange = () => {
+      updateProfileData();
+    };
+
+    window.addEventListener('quaders:permissions_changed', handlePermChange);
+    return () => window.removeEventListener('quaders:permissions_changed', handlePermChange);
+  }, [updateProfileData]);
+
+  // 3. Socket.IO real-time event listener for live permission updates without reload
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleSocketPermUpdate = (payload) => {
+      updateProfileData();
+    };
+
+    socket.on('permissions-updated', handleSocketPermUpdate);
+    return () => {
+      socket.off('permissions-updated', handleSocketPermUpdate);
+    };
+  }, [updateProfileData]);
 
   // Function to wrap login so context updates immediately
   const handleAuthChange = () => {

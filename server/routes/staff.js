@@ -4,7 +4,14 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { z } = require('zod');
 const emailService = require('../services/emailService');
-const { authenticateToken, requireActiveSchool, requireAcademicSetup, requireRole, requirePermission } = require('../middleware');
+const { 
+  authenticateToken, 
+  requireActiveSchool, 
+  requireAcademicSetup, 
+  requireRole, 
+  requirePermission,
+  invalidateRoleCache 
+} = require('../middleware');
 
 // All staff management routes require active school + academic setup preconditions
 router.use(authenticateToken, requireActiveSchool, requireAcademicSetup);
@@ -41,6 +48,7 @@ router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
         phone: true,
         employeeId: true,
         status: true,
+        password: true,
         roleId: true,
         customRole: {
           select: {
@@ -69,7 +77,8 @@ router.get('/', requirePermission('staff', 'VIEW'), async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json(staffList);
+    const sanitized = staffList.map(({ password, ...s }) => ({ ...s, hasPassword: Boolean(password) }));
+    res.json(sanitized);
   } catch (error) {
     console.error('Fetch staff error:', error);
     res.status(500).json({ error: 'Failed to fetch staff members' });
@@ -161,7 +170,17 @@ router.post('/:id/invite', requirePermission('staff', 'EDIT'), async (req, res) 
     const { sendEmail } = req.body || {};
 
     const staff = await prisma.user.findFirst({
-      where: { id: staffId, schoolId: collegeId, role: 'STAFF' },
+      where: {
+        schoolId: collegeId,
+        role: 'STAFF',
+        OR: [
+          { id: staffId },
+          { email: staffId.toLowerCase() },
+          { employeeId: staffId },
+          ...(req.body?.email ? [{ email: req.body.email.toLowerCase() }] : []),
+          ...(req.body?.employeeId ? [{ employeeId: req.body.employeeId }] : [])
+        ]
+      },
       include: {
         school: true,
         customRole: true
@@ -176,8 +195,27 @@ router.post('/:id/invite', requirePermission('staff', 'EDIT'), async (req, res) 
       return res.status(400).json({ error: 'Cannot generate an invite for a deactivated staff member' });
     }
 
-    if (staff.status === 'ACTIVE') {
-      return res.status(400).json({ error: 'Staff member has already registered and is ACTIVE' });
+    // Allow generating/regenerating invite link; set status to INVITED and reset password
+    if (staff.status !== 'INVITED' || staff.password !== null) {
+      await prisma.user.update({
+        where: { id: staff.id },
+        data: { status: 'INVITED', password: null }
+      });
+      try {
+        const teacherDocs = await prisma.schoolDocument.findMany({
+          where: { schoolId: collegeId, collection: 'teachers' }
+        });
+        for (const tDoc of teacherDocs) {
+          if (tDoc.data && (tDoc.data.email?.toLowerCase() === staff.email.toLowerCase() || tDoc.data.userId === staff.id)) {
+            await prisma.schoolDocument.update({
+              where: { id: tDoc.id },
+              data: { data: { ...tDoc.data, status: 'Invited' } }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Teacher document status sync warning:', e.message);
+      }
     }
 
     if (staff.school?.status !== 'ACTIVE') {
@@ -395,15 +433,60 @@ router.patch('/:id/role', requirePermission('staff', 'EDIT'), async (req, res) =
       return res.status(400).json({ error: `The role "${role.name}" has no active module permissions. Assign at least one permission before assigning it to staff.` });
     }
 
-    const updated = await prisma.user.update({
-      where: { id: req.params.id },
-      data: { roleId: role.id },
-      include: {
-        customRole: {
-          include: { permissions: true }
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Update staff roleId
+      const u = await tx.user.update({
+        where: { id: req.params.id },
+        data: { roleId: role.id },
+        include: {
+          customRole: {
+            include: { permissions: true }
+          }
+        }
+      });
+
+      // 2. Increment role.permissionsVersion
+      await tx.role.update({
+        where: { id: role.id },
+        data: { permissionsVersion: { increment: 1 } }
+      });
+
+      return u;
+    });
+
+    // Invalidate role cache
+    invalidateRoleCache(role.id);
+    if (staffMember.roleId && staffMember.roleId !== role.id) {
+      invalidateRoleCache(staffMember.roleId);
+    }
+
+    // Keep SchoolDocument in sync
+    try {
+      const teacherDocs = await prisma.schoolDocument.findMany({
+        where: { schoolId: collegeId, collection: 'teachers' }
+      });
+      for (const tDoc of teacherDocs) {
+        if (tDoc.data && (tDoc.data.email?.toLowerCase() === staffMember.email.toLowerCase() || tDoc.data.userId === staffMember.id)) {
+          await prisma.schoolDocument.update({
+            where: { id: tDoc.id },
+            data: { data: { ...tDoc.data, roleId: role.id, role: role.name, roles: [role.name] } }
+          });
         }
       }
-    });
+    } catch (e) {
+      console.warn('Teacher document role sync warning:', e.message);
+    }
+
+    // Emit socket real-time update
+    if (req.io) {
+      req.io.to(collegeId).emit('permissions-updated', {
+        schoolId: collegeId,
+        staffId: req.params.id,
+        roleId: role.id,
+        roleName: role.name,
+        type: 'STAFF_ROLE_CHANGED'
+      });
+    }
 
     const { password: _, ...staffWithoutPassword } = updated;
     res.json({ message: 'Staff role updated successfully', staff: staffWithoutPassword });

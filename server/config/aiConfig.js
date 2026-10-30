@@ -12,8 +12,8 @@ const AI_CONFIG = {
   temperature: parseFloat(process.env.AI_TEMPERATURE || '0.2'),
   maxTokens: parseInt(process.env.AI_MAX_TOKENS || '2048', 10),
   requestTimeoutMs: parseInt(process.env.AI_REQUEST_TIMEOUT_MS || '35000', 10),
-  siteUrl: process.env.AI_SITE_URL || 'https://quaders.com',
-  siteName: process.env.AI_SITE_NAME || 'Quaders School Management ERP',
+  siteUrl: process.env.AI_SITE_URL || 'https://queflow.com',
+  siteName: process.env.AI_SITE_NAME || 'queflow School Management ERP',
 
   // Daily AI Request Quotas by Subscription Plan Tier
   planLimits: {

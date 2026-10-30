@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'info.quaders@gmail.com';
+  const email = 'info.queflow@gmail.com';
   const rawPassword = 'Quad@1010';
   const name = 'Super Administrator';
 

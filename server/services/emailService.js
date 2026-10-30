@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-const STANDARD_EMAIL_WRAPPER = (content, schoolName = 'Quaders School Management System') => `<!DOCTYPE html>
+const STANDARD_EMAIL_WRAPPER = (content, schoolName = 'queflow School Management System') => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -72,7 +72,7 @@ class EmailService {
   }
 
   renderTemplate(templateType, data = {}) {
-    const schoolName = data.schoolName || 'Quaders School Management System';
+    const schoolName = data.schoolName || 'queflow School Management System';
 
     switch (templateType) {
       case 'WELCOME': {
@@ -165,9 +165,9 @@ class EmailService {
       throw new Error('Email subject and html content are required');
     }
 
-    const senderEmail = process.env.SMTP_FROM || 'support@quaders.com';
+    const senderEmail = process.env.SMTP_FROM || 'support@queflow.com';
     const mailOptions = {
-      from: `"Quaders System" <${senderEmail}>`,
+      from: `"queflow System" <${senderEmail}>`,
       to,
       subject,
       html

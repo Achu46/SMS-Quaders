@@ -4,7 +4,7 @@ import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { getSubCollection, updateSubDocument, addSubDocument, subscribeToSubCollection, deleteSubDocument } from '../../firebase/firestore';
 import { doc, getDoc, getDocs, collection, writeBatch } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { db, socket } from '../../firebase/config';
 import { uploadFileToCloudinaryOrFirebase, uploadCustomDataFiles } from '../../utils/cloudinary';
 import { LuSearch as Search, LuShieldCheck as ShieldCheck, LuMail as Mail, LuUsers as Users, LuCircleCheck as CheckCircle2, LuX as X, LuCloudUpload as UploadCloud, LuFileText as FileText, LuExternalLink as ExternalLink, LuDownload as Download, LuFileSpreadsheet as FileSpreadsheet, LuUserPlus as UserPlus, LuEye as Eye, LuFilter as Filter, LuLink as LinkIcon, LuCopy as CopyIcon, LuTrash2 as Trash, LuFileDown as FileDown, LuGraduationCap as GraduationCap, LuBriefcase as Briefcase, LuBuilding2 as Building2, LuCreditCard as CreditCard, LuIdCard as IdCard, LuUser as User, LuPhone as Phone, LuCalendar as Calendar, LuMapPin as MapPin, LuBadgeCheck as BadgeCheck, LuInfo as Info, LuCheck as Check, LuFileUp as FileUp, LuCircleAlert as CircleAlert } from 'react-icons/lu';
 import { TableSkeleton } from '../../components/Skeleton';
@@ -89,6 +89,30 @@ export default function StaffAssignment() {
     emailSending: false
   });
 
+  const fetchRoles = async () => {
+    try {
+      const data = await api.get('/roles');
+      if (Array.isArray(data)) {
+        setRolesList(data);
+        setAllRoles(data.map(r => r.name));
+      } else {
+        setRolesList([]);
+        setAllRoles([]);
+      }
+    } catch (err) {
+      console.error('Error fetching custom roles:', err);
+      setRolesList([]);
+      setAllRoles([]);
+    }
+  };
+
+  const getStaffRoleName = (member) => {
+    const backendUser = (member.userId && backendStaffMap[member.userId]) || (member.email && backendStaffMap[member.email?.toLowerCase()]) || (member.staffId && backendStaffMap[member.staffId]);
+    const activeRoleId = backendUser?.roleId || member.roleId;
+    const matchedRole = rolesList.find(r => r.id === activeRoleId);
+    return matchedRole?.name || member.customRole?.name || member.role || (member.roles && member.roles[0]) || 'No Role';
+  };
+
   const loadBackendStaff = async () => {
     try {
       const bStaff = await api.get('/staff');
@@ -128,7 +152,10 @@ export default function StaffAssignment() {
 
     try {
       // Generate or retrieve active invite URL
-      const genRes = await api.post(`/staff/${staffId}/invite`);
+      const genRes = await api.post(`/staff/${staffId}/invite`, {
+        email: staffEmail,
+        employeeId: staffEmpId
+      });
       setInviteModal(prev => ({
         ...prev,
         inviteUrl: genRes.inviteUrl,
@@ -147,7 +174,10 @@ export default function StaffAssignment() {
     if (!inviteModal.staffId) return;
     setInviteModal(prev => ({ ...prev, loading: true }));
     try {
-      const res = await api.post(`/staff/${inviteModal.staffId}/invite`);
+      const res = await api.post(`/staff/${inviteModal.staffId}/invite`, {
+        email: inviteModal.staffEmail,
+        employeeId: inviteModal.staffEmpId
+      });
       setInviteModal(prev => ({
         ...prev,
         inviteUrl: res.inviteUrl,
@@ -352,21 +382,7 @@ export default function StaffAssignment() {
 
     subjectsUnsub = subscribeToSubCollection(schoolId, 'subjects', setSubjects);
 
-    // Fetch custom roles list from Express REST API (strictly scoped to collegeId)
-    api.get('/roles').then(data => {
-      if (Array.isArray(data)) {
-        setRolesList(data);
-        setAllRoles(data.map(r => r.name));
-      } else {
-        setRolesList([]);
-        setAllRoles([]);
-      }
-    }).catch(err => {
-      console.error("Error fetching custom roles:", err);
-      setRolesList([]);
-      setAllRoles([]);
-    });
-
+    fetchRoles();
     loadBackendStaff();
 
     return () => {
@@ -375,6 +391,29 @@ export default function StaffAssignment() {
       if (subjectsUnsub) subjectsUnsub();
     };
   }, [schoolId]);
+
+
+  // Reactive sync on focus, socket permissions-updated, and custom permissions_changed events
+  useEffect(() => {
+    const handleSync = () => {
+      fetchRoles();
+      loadBackendStaff();
+    };
+
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('quaders:permissions_changed', handleSync);
+    if (socket) {
+      socket.on('permissions-updated', handleSync);
+    }
+
+    return () => {
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('quaders:permissions_changed', handleSync);
+      if (socket) {
+        socket.off('permissions-updated', handleSync);
+      }
+    };
+  }, []);
 
   // Click outside to close filter dropdown
   useEffect(() => {
@@ -947,8 +986,7 @@ export default function StaffAssignment() {
       if (selectedFields.name) row["Name"] = member.name || `${member.firstName} ${member.lastName}`.trim();
       if (selectedFields.email) row["Email"] = member.email || '';
       if (selectedFields.role) {
-        const currentRoles = member.roles || (member.role ? [member.role] : ['Staffs']);
-        row["Role"] = currentRoles.join(', ');
+        row["Role"] = getStaffRoleName(member);
       }
       if (selectedFields.assignedClass) row["Assigned Class"] = getClassName(member.assignedClassId);
       if (selectedFields.subjectClasses) row["Subject Classes"] = (member.subjectClassIds || []).map(getClassName).join(', ');
@@ -973,8 +1011,10 @@ export default function StaffAssignment() {
     const name = member.name || `${member.firstName} ${member.lastName}`;
     const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) || 
            (member.email && member.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    const staffRole = getStaffRoleName(member);
     const matchesRole = roleFilter === 'all' || 
-                         (member.roles || [member.role || 'Staffs']).includes(roleFilter);
+                         staffRole.toLowerCase() === roleFilter.toLowerCase() || 
+                         (member.roles && member.roles.some(r => r.toLowerCase() === roleFilter.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || (member.status || 'Active') === statusFilter;
     const matchesGender = genderFilter === 'all' || normalizeGender(member.gender, '') === genderFilter;
     
@@ -1040,6 +1080,7 @@ export default function StaffAssignment() {
           {hasCreatePermission && (
             <button 
               onClick={() => {
+                fetchRoles();
                 setAddStaffActiveTab('Personal');
                 setAddStaffModalOpen(true);
               }}
@@ -1111,21 +1152,9 @@ export default function StaffAssignment() {
               className="px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Roles</option>
-              <option value="Correspondent">Correspondent</option>
-              <option value="Principal">Principal</option>
-              <option value="Vice Principal">Vice Principal</option>
-              <option value="Subject Wise Head">Subject Wise Head</option>
-              <option value="Class Incharge">Class Incharge</option>
-              <option value="Staffs">Staffs</option>
-              <option value="Administrative Officer">Administrative Officer</option>
-              <option value="Finance Department">Finance Department</option>
-              <option value="Library">Library</option>
-              <option value="Canteen">Canteen</option>
-              <option value="Transport">Transport</option>
-              <option value="Janitors">Janitors</option>
-              <option value="Hostel">Hostel</option>
-              <option value="Inventory">Inventory</option>
-              <option value="Security">Security</option>
+              {rolesList.map(r => (
+                <option key={r.id} value={r.name}>{r.name}</option>
+              ))}
             </select>
             <select 
               value={statusFilter}
@@ -1239,7 +1268,9 @@ export default function StaffAssignment() {
                   const name = member.name || `${member.firstName} ${member.lastName}`;
                   const isAssigned = !!member.assignedClassId;
                   const backendUser = (member.userId && backendStaffMap[member.userId]) || (member.email && backendStaffMap[member.email?.toLowerCase()]) || (member.staffId && backendStaffMap[member.staffId]);
-                  const staffStatus = (backendUser?.status || member.status || 'INVITED').toUpperCase();
+                  const hasRegisteredPassword = backendUser?.hasPassword ?? (backendUser?.password ? true : false);
+                  const isInvitedOrUnregistered = !hasRegisteredPassword || (backendUser?.status || member.status || 'INVITED').toUpperCase() === 'INVITED';
+                  const staffStatus = isInvitedOrUnregistered ? 'INVITED' : (backendUser?.status || member.status || 'ACTIVE').toUpperCase();
 
                   return (
                     <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
@@ -1251,7 +1282,7 @@ export default function StaffAssignment() {
                           <div className="font-semibold text-slate-900 dark:text-white leading-snug">
                             {name}
                             <div className="text-xs font-medium text-orange-600 dark:text-orange-400">
-                              {member.customRole?.name || member.role || (member.roles && member.roles[0]) || 'No Role'}
+                              {getStaffRoleName(member)}
                             </div>
                           </div>
                         </div>
@@ -1298,19 +1329,20 @@ export default function StaffAssignment() {
                       </td>
                       <td className="p-4 pr-6 text-right">
                         <div className="flex justify-end gap-2">
-                          {staffStatus === 'INVITED' ? (
+                          {isInvitedOrUnregistered ? (
                             <button
                               onClick={() => openInviteModal(member)}
-                              className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                              title="Registration Invite Link"
+                              className="px-2.5 py-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/40 border border-orange-200 dark:border-orange-800/60 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                              title="Staff Password Not Registered - Click to View/Copy Registration Link"
                             >
-                              <LinkIcon size={18} />
+                              <LinkIcon size={15} className="text-orange-600 dark:text-orange-400 shrink-0" />
+                              <span className="hidden sm:inline">Invite Link</span>
                             </button>
                           ) : (
                             <button
-                              disabled
-                              className="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed rounded-lg"
-                              title="Already registered"
+                              onClick={() => openInviteModal(member)}
+                              className="p-2 text-slate-500 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Staff Already Registered - Click to Re-share / Regenerate Link"
                             >
                               <LinkIcon size={18} />
                             </button>

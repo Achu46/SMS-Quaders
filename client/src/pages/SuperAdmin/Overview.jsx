@@ -103,33 +103,33 @@ export default function Overview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="bg-[#E8F6F5] dark:bg-slate-900/90 p-6 rounded-3xl border border-[#CCEAE7] dark:border-primary-900/40 shadow-xs hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+            <div className="p-3 bg-white dark:bg-slate-800 text-primary-600 rounded-2xl shadow-xs">
               <Building2 size={24} />
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Total Active Schools</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">Total Active Schools</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white">{activeSchools.length}</h3>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="bg-[#E8F6F5] dark:bg-slate-900/90 p-6 rounded-3xl border border-[#CCEAE7] dark:border-primary-900/40 shadow-xs hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-green-50 text-green-600 rounded-2xl">
+            <div className="p-3 bg-white dark:bg-slate-800 text-primary-600 rounded-2xl shadow-xs">
               <TrendingUp size={24} />
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Monthly Recurring Revenue</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">Monthly Recurring Revenue</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white">₹{mrr}</h3>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
+        <div className="bg-[#E8F6F5] dark:bg-slate-900/90 p-6 rounded-3xl border border-[#CCEAE7] dark:border-primary-900/40 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+            <div className="p-3 bg-white dark:bg-slate-800 text-amber-500 rounded-2xl shadow-xs">
               <AlertCircle size={24} />
             </div>
             {pendingSchools.length > 0 && (
@@ -140,7 +140,7 @@ export default function Overview() {
             )}
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Pending Approvals</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">Pending Approvals</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white">{pendingSchools.length}</h3>
             {pendingSchools.length > 0 && (
               <Link to="/superadmin/tenants" className="text-xs text-primary-600 font-bold hover:underline mt-2 inline-block">Review Now &rarr;</Link>
@@ -148,24 +148,24 @@ export default function Overview() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <div className="bg-[#E8F6F5] dark:bg-slate-900/90 p-6 rounded-3xl border border-[#CCEAE7] dark:border-primary-900/40 shadow-xs hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start mb-4">
-            <div className="p-3 bg-red-50 text-red-600 rounded-2xl">
+            <div className="p-3 bg-white dark:bg-slate-800 text-red-500 rounded-2xl shadow-xs">
               <AlertCircle size={24} />
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Suspended Tenants</p>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">Suspended Tenants</p>
             <h3 className="text-3xl font-black text-slate-900 dark:text-white">{suspendedSchools.length}</h3>
           </div>
         </div>
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recent Registrations</h2>
-          <Link to="/superadmin/tenants" className="text-sm font-bold text-primary-600 hover:text-primary-700">View All Tenants</Link>
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="p-5 px-6 border-b border-primary-700/20 flex justify-between items-center bg-primary-600 text-white">
+          <h2 className="text-lg font-bold text-white">Recent Registrations</h2>
+          <Link to="/superadmin/tenants" className="text-sm font-bold text-white/90 hover:text-white hover:underline">View All Tenants &rarr;</Link>
         </div>
         <div className="divide-y divide-slate-100">
           {recentSchools.length === 0 ? (

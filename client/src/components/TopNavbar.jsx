@@ -225,12 +225,12 @@ export default function TopNavbar({ schoolName, schoolLogo, toggleSidebar, navIt
             <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
               {userProfile?.name || 'Administrator'}
             </p>
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/60 px-1.5 py-0.5 rounded border border-orange-200/50 dark:border-orange-800/40">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-primary-600 dark:text-primary-400">
               {userProfile?.role || 'SUPER_ADMIN'}
             </span>
           </div>
 
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-orange-500/20 ring-2 ring-white dark:ring-slate-800">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary-600 to-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-primary-500/20 ring-2 ring-white dark:ring-slate-800">
             {getInitials(userProfile?.name, userProfile?.email)}
           </div>
         </div>

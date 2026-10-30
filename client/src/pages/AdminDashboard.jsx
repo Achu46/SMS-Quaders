@@ -8,7 +8,8 @@ import {
   LuPackage as PackageIcon, LuBriefcase as Briefcase, LuChartBar as BarChart2, LuHeartPulse as HeartPulse, 
   LuCircleAlert as AlertCircle, LuFiles as Files, LuChevronDown as ChevronDown, LuChevronRight as ChevronRight, 
   LuShield as Shield, LuLayoutGrid as LayoutGrid, LuMessageSquare as MessageSquare, LuCoffee as Coffee,
-  LuLock as Lock 
+  LuLock as Lock,
+  LuShieldAlert as ShieldAlert
 } from 'react-icons/lu';
 import { logoutUser } from '../services/auth';
 import { useAuth } from '../context/AuthContext';
@@ -26,9 +27,9 @@ export const allNavItems = [
   { name: 'Canteen Requests', path: '/admin/canteen', icon: Coffee, moduleKey: 'canteen' },
   { name: 'Environment Setup', path: '/admin/setup', icon: Settings },
   { name: 'Staff Directory', path: '/admin/staff', icon: GraduationCap, moduleKey: 'staff' },
-  { 
-    name: 'Classes & Sections', 
-    path: '/admin/classes', 
+  {
+    name: 'Classes & Sections',
+    path: '/admin/classes',
     icon: BookOpen,
     moduleKey: 'classes',
     subItems: [
@@ -180,6 +181,11 @@ export default function AdminDashboard() {
   }
 
   const isAdmin = userProfile?.role?.toLowerCase() === 'admin' || userProfile?.role?.toLowerCase() === 'superadmin' || userProfile?.role?.toLowerCase() === 'super_admin';
+  const isStaff = !isAdmin;
+  const permittedModuleKeys = (typeof permissions === 'object' && permissions !== null)
+    ? Object.keys(permissions).filter(k => Boolean(permissions[k]?.read || permissions[k]?.canRead || permissions[k]?.create || permissions[k]?.update || permissions[k]?.delete))
+    : [];
+  const hasNoAccess = isStaff && permittedModuleKeys.length === 0;
   const isSetupCompleted = Boolean(
     userProfile?.academicSetupCompleted ?? 
     userProfile?.setupCompleted ?? 
@@ -190,7 +196,7 @@ export default function AdminDashboard() {
 
   const permittedModules = schoolData?.permittedModules || [];
   const combinedNavItems = [...allNavItems, ...customNavItems];
-  
+
   let navItems = combinedNavItems.filter(item => {
     // For Staff members: strictly enforce role-based permissions
     if (permissions !== 'ALL') {
@@ -209,12 +215,10 @@ export default function AdminDashboard() {
     if (!item.moduleKey && item.name === 'Environment Setup') return true;
     if (item.isCustom) return true;
     if (item.moduleKey === 'inventory' && schoolData?.schoolType === 'College') return true;
-    
     const coreKeys = ['classes', 'students', 'staff', 'links', 'roles', 'settings', 'form-builder', 'api', 'homework', 'leaves', 'leads', 'reports', 'canteen', 'chats'];
     if (!coreKeys.includes(item.moduleKey) && !permittedModules.includes(item.moduleKey)) {
-       return false;
+      return false;
     }
-    
     return true;
   });
 
@@ -238,7 +242,7 @@ export default function AdminDashboard() {
     <div className="flex h-screen bg-slate-50 dark:bg-[#070b14] text-slate-900 dark:text-slate-100 font-sans overflow-hidden antialiased selection:bg-orange-500 selection:text-white">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -252,14 +256,14 @@ export default function AdminDashboard() {
         {/* Brand Header */}
         <div className="px-6 py-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <img 
-              src="/logo.png" 
-              alt="Quaders" 
-              className="w-10 h-10 object-contain shrink-0" 
+            <img
+              src="/logo.png"
+              alt="queflow"
+              className="w-10 h-10 object-contain shrink-0"
             />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">Quaders</h1>
+                <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none">queflow</h1>
                 <span className="px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-md">OS</span>
               </div>
               <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 uppercase tracking-wider truncate">
@@ -268,8 +272,8 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <button 
-            onClick={() => setIsSidebarOpen(false)} 
+          <button
+            onClick={() => setIsSidebarOpen(false)}
             className="lg:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X size={20} />
@@ -280,15 +284,21 @@ export default function AdminDashboard() {
         <div className="px-4 py-3">
           <p className="px-3 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">School Modules</p>
         </div>
-          
+
         <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => {
+          {hasNoAccess ? (
+            <div className="px-4 py-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl mx-2 border border-slate-100 dark:border-slate-800">
+              <ShieldAlert size={28} className="mx-auto text-amber-500 mb-2" />
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Access Assigned</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Contact your admin.</p>
+            </div>
+          ) : navItems.map((item) => {
             const hasSubItems = item.subItems && item.subItems.length > 0;
             const isExpanded = expandedMenus.includes(item.name);
 
             const toggleMenu = () => {
               if (hasSubItems) {
-                setExpandedMenus(prev => 
+                setExpandedMenus(prev =>
                   prev.includes(item.name) ? [] : [item.name]
                 );
               }
@@ -314,11 +324,10 @@ export default function AdminDashboard() {
                   className={({ isActive }) => {
                     const childActive = hasSubItems && item.subItems.some(sub => location.pathname === sub.path);
                     const active = isActive || childActive;
-                    return `group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm ${
-                      active 
-                        ? 'bg-gradient-to-r from-orange-500/15 via-orange-500/10 to-transparent dark:from-orange-500/20 dark:via-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold border-l-4 border-orange-500 shadow-sm' 
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
-                    }`
+                    return `group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm ${active
+                        ? 'bg-primary-600 text-white font-semibold shadow-md shadow-primary-600/25'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-primary-50/80 dark:hover:bg-slate-800/60 hover:text-primary-700 dark:hover:text-white'
+                      }`
                   }}
                 >
                   {({ isActive }) => {
@@ -327,11 +336,10 @@ export default function AdminDashboard() {
                     return (
                       <>
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`p-1.5 rounded-lg transition-colors ${
-                            active 
-                              ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30' 
-                              : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 group-hover:text-orange-500 group-hover:bg-orange-50 dark:group-hover:bg-slate-800'
-                          }`}>
+                          <div className={`p-1.5 rounded-lg transition-colors ${active
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 group-hover:text-primary-600 group-hover:bg-primary-100/70 dark:group-hover:bg-slate-800'
+                            }`}>
                             <item.icon size={16} />
                           </div>
                           <span className="truncate">{item.name}</span>
@@ -344,12 +352,12 @@ export default function AdminDashboard() {
                             </span>
                           )}
                           {unreadCounts[item.moduleKey] > 0 && (
-                            <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full select-none animate-pulse">
+                            <span className="bg-primary-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full select-none animate-pulse">
                               {unreadCounts[item.moduleKey]}
                             </span>
                           )}
                           {hasSubItems && (
-                            <div className="text-slate-400">
+                            <div className={active ? 'text-white/80' : 'text-slate-400'}>
                               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             </div>
                           )}
@@ -358,7 +366,7 @@ export default function AdminDashboard() {
                     );
                   }}
                 </NavLink>
-                
+
                 {/* Sub Items */}
                 {hasSubItems && isExpanded && (
                   <div className="pl-9 pr-2 py-1 space-y-1 relative before:absolute before:left-5 before:top-0 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800 before:rounded-full">
@@ -366,11 +374,10 @@ export default function AdminDashboard() {
                       <NavLink
                         key={sub.name}
                         to={sub.path}
-                        className={({ isActive }) => 
-                          `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors relative whitespace-nowrap ${
-                            isActive
-                              ? 'text-orange-600 dark:text-orange-400 bg-orange-50/60 dark:bg-orange-950/40 before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:rounded-full before:bg-orange-500'
-                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors relative whitespace-nowrap ${isActive
+                            ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/40 before:absolute before:-left-4 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:rounded-full before:bg-primary-500 font-bold'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`
                         }
                       >
@@ -385,43 +392,43 @@ export default function AdminDashboard() {
           })}
         </nav>
 
-        {/* User Card Footer */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="bg-white dark:bg-slate-800/90 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center justify-between gap-3">
+        {/* User Card & Logout Footer (FUNDZA Style) */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 space-y-2.5">
+          <div className="bg-white dark:bg-slate-800/90 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-700/60 shadow-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="relative">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-orange-500/20">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-600 to-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-primary-500/20">
                   {userProfile?.email ? userProfile.email.substring(0, 2).toUpperCase() : 'AD'}
                 </div>
                 <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-800 rounded-full" title="Online" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{userProfile?.name || userProfile?.email?.split('@')[0] || 'Administrator'}</p>
-                <p className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider truncate">
+                <p className="text-[10px] font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-wider truncate">
                   {userProfile?.role || 'Admin'}
                 </p>
               </div>
             </div>
-
-            <button 
-              onClick={handleLogout}
-              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-all"
-              title="Logout"
-            >
-              <LogOut size={16} />
-            </button>
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#20252B] hover:bg-[#15191D] text-white text-xs font-bold transition-all shadow-sm"
+          >
+            <LogOut size={15} />
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <TopNavbar 
-          schoolName={schoolData?.name || 'School Operations'} 
+        <TopNavbar
+          schoolName={schoolData?.name || 'School Operations'}
           toggleSidebar={() => setIsSidebarOpen(true)}
           navItems={navItems}
         />
-        
+
         <main className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
             {userProfile?.role?.toLowerCase() === 'admin' && isSetupLocked && (
@@ -469,13 +476,31 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            <Suspense fallback={
-              <div className="flex justify-center items-center h-[50vh]">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-coral/20 border-t-coral"></div>
+            {hasNoAccess ? (
+              <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm animate-fade-in-up">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
+                  <ShieldAlert size={36} />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">No access assigned</h2>
+                <p className="text-slate-500 dark:text-slate-400 max-w-md mb-6 text-sm">
+                  No access assigned. Contact your admin.
+                </p>
+                <button
+                  onClick={() => updateProfileData && updateProfileData()}
+                  className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm transition-all shadow-md shadow-orange-500/25"
+                >
+                  Check for Updates
+                </button>
               </div>
-            }>
-              <Outlet />
-            </Suspense>
+            ) : (
+              <Suspense fallback={
+                <div className="flex justify-center items-center h-[50vh]">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-coral/20 border-t-coral"></div>
+                </div>
+              }>
+                <Outlet />
+              </Suspense>
+            )}
           </div>
         </main>
       </div>

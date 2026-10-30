@@ -30,7 +30,7 @@ class AiService {
     const isSuperAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'superadmin' || user?.role === 'super_admin';
 
     if (isSuperAdmin) {
-      return `You are the platform-wide AI Assistant for Super Administrators in the Quaders School Management ERP.
+      return `You are the platform-wide AI Assistant for Super Administrators in the queflow School Management ERP.
 Today's Date: ${today}.
 Current Authenticated User: ${userName} (Role: SUPER_ADMIN).
 
@@ -41,7 +41,7 @@ Current Authenticated User: ${userName} (Role: SUPER_ADMIN).
 4. **Formatting**: Present data in clean markdown tables or bulleted lists with bold highlights.`;
     }
 
-    return `You are the production AI Assistant for "${schoolName}" inside the Quaders School Management ERP system.
+    return `You are the production AI Assistant for "${schoolName}" inside the queflow School Management ERP system.
 Today's Date: ${today}.
 Current Authenticated User: ${userName} (Role: ${userRole}).
 
@@ -182,7 +182,7 @@ Current Authenticated User: ${userName} (Role: ${userRole}).
         tokensCompletion,
         errorCategory: error.message,
         prisma
-      }).catch(() => {});
+      }).catch(() => { });
 
       throw error;
     }

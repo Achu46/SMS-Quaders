@@ -118,17 +118,17 @@ async function runAllP1Tests() {
     const welcome = emailService.renderTemplate('WELCOME', {
       userName: 'Alice Smith',
       role: 'Teacher',
-      loginUrl: 'https://quaders.com/login',
+      loginUrl: 'https://queflow.com/login',
       schoolName: 'Greenwood High'
     });
 
     assert.match(welcome.subject, /Welcome to Greenwood High/i);
     assert.match(welcome.html, /Alice Smith/);
     assert.match(welcome.html, /Teacher/);
-    assert.match(welcome.html, /https:\/\/quaders\.com\/login/);
+    assert.match(welcome.html, /https:\/\/queflow\.com\/login/);
 
     const forgot = emailService.renderTemplate('FORGOT_PASSWORD', {
-      resetLink: 'https://quaders.com/reset?token=xyz123'
+      resetLink: 'https://queflow.com/reset?token=xyz123'
     });
     assert.match(forgot.subject, /Password Reset Request/i);
     assert.match(forgot.html, /xyz123/);
@@ -141,7 +141,7 @@ async function runAllP1Tests() {
       data: {
         userName: 'Principal Anderson',
         role: 'Admin',
-        loginUrl: 'https://school.quaders.com/login'
+        loginUrl: 'https://school.queflow.com/login'
       }
     });
 

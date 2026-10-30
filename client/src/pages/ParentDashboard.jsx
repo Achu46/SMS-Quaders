@@ -48,7 +48,7 @@ export default function ParentDashboard() {
       } else {
         getSchool(userProfile.schoolId).then(data => {
           if (isMounted && data) setSchool(data);
-        }).catch(() => {});
+        }).catch(() => { });
       }
       setLoading(false);
     } else {
@@ -129,7 +129,7 @@ export default function ParentDashboard() {
     try {
       // 1. Find the student
       const student = await findStudentByAdmission(userProfile.schoolId, admissionNumber, dob);
-      
+
       if (!student) {
         setLinkingError("No student found matching this Admission Number and Date of Birth.");
         setIsLinking(false);
@@ -140,7 +140,6 @@ export default function ParentDashboard() {
 
       // 2. Link the student to the parent's profile
       await linkStudentToParent(currentUser?.uid || userProfile?.id, student.id, student.classId, studentName);
-      
       // 3. Update local auth context to trigger re-render
       await updateProfileData();
     } catch (error) {
@@ -163,11 +162,11 @@ export default function ParentDashboard() {
         setIsLinkingAnother(false);
         return;
       }
-      
+
       const studentName = student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Student';
       await linkStudentToParent(currentUser?.uid || userProfile?.id, student.id, student.classId, studentName);
       await updateProfileData();
-      
+
       setIsLinkAnotherModalOpen(false);
       setIsChildDropdownOpen(false);
       setAnotherAdmission('');
@@ -211,11 +210,11 @@ export default function ParentDashboard() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-800 flex flex-col items-center justify-center p-4">
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full shadow-xl border border-slate-200 dark:border-slate-700 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-primary-500"></div>
-          
+
           <div className="w-16 h-16 bg-primary-50 text-primary-600 rounded-full flex items-center justify-center mb-6">
             <LinkIcon size={32} />
           </div>
-          
+
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Link Your Child</h1>
           <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
             To view academic records, please securely link your account using your child's Admission Number and Date of Birth.
@@ -230,8 +229,8 @@ export default function ParentDashboard() {
           <form onSubmit={handleLinkStudent} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Admission Number</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 required
                 value={admissionNumber}
                 onChange={(e) => setAdmissionNumber(e.target.value)}
@@ -239,11 +238,11 @@ export default function ParentDashboard() {
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Date of Birth</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 required
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
@@ -251,8 +250,8 @@ export default function ParentDashboard() {
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isLinking}
               className="w-full py-3 bg-primary-600 text-white hover:bg-primary-700 rounded-xl font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
             >
@@ -260,7 +259,7 @@ export default function ParentDashboard() {
             </button>
           </form>
 
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full py-3 mt-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-semibold transition-colors flex items-center justify-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"
           >
@@ -275,7 +274,7 @@ export default function ParentDashboard() {
     <div className="flex h-screen bg-[#f4f7fe] dark:bg-[#0b0f19] font-sans overflow-hidden p-0 lg:p-4 gap-0 lg:gap-4">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         ></div>
@@ -290,11 +289,11 @@ export default function ParentDashboard() {
 
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center p-1 shrink-0">
-              <img src="/logo.png" alt="School" className="w-full h-full object-contain" onError={(e) => { e.target.style.display='none'; e.target.nextElementSibling.style.display='block'; }} />
-              <div style={{display: 'none'}} className="font-black text-slate-900 dark:text-white text-xl">Z</div>
+              <img src="/logo.png" alt="School" className="w-full h-full object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'block'; }} />
+              <div style={{ display: 'none' }} className="font-black text-slate-900 dark:text-white text-xl">Z</div>
             </div>
             <div className="min-w-0">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight truncate">Quaders</h2>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight truncate">queflow</h2>
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5">Parent Portal</p>
             </div>
           </div>
@@ -306,7 +305,7 @@ export default function ParentDashboard() {
         {/* Child Switcher Dropdown */}
         {userProfile?.linkedStudents && userProfile.linkedStudents.length > 0 && (
           <div className="mb-4 relative px-4">
-            <button 
+            <button
               onClick={() => setIsChildDropdownOpen(!isChildDropdownOpen)}
               className="w-full flex items-center justify-between bg-primary-50 dark:bg-slate-800 hover:bg-primary-100 dark:hover:bg-slate-700 text-primary-900 dark:text-primary-100 px-4 py-2.5 rounded-xl border border-primary-100 dark:border-slate-700 transition-colors"
             >
@@ -323,23 +322,21 @@ export default function ParentDashboard() {
                   <button
                     key={idx}
                     onClick={() => handleSwitchChild(child.studentId, child.classId)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                      child.studentId === userProfile.linkedStudentId 
-                        ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-200 font-bold' 
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${child.studentId === userProfile.linkedStudentId
+                        ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-200 font-bold'
                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'
-                    }`}
+                      }`}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
-                      child.studentId === userProfile.linkedStudentId ? 'bg-primary-200 text-primary-800' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${child.studentId === userProfile.linkedStudentId ? 'bg-primary-200 text-primary-800' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                      }`}>
                       {child.name?.substring(0, 2).toUpperCase() || 'ST'}
                     </div>
                     <span className="truncate text-sm">{child.name || 'Student'}</span>
                   </button>
                 ))}
-                
+
                 <div className="px-3 pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">
-                  <button 
+                  <button
                     onClick={() => {
                       setIsChildDropdownOpen(false);
                       setIsLinkAnotherModalOpen(true);
@@ -361,10 +358,9 @@ export default function ParentDashboard() {
               to={item.path}
               end={item.exact}
               className={({ isActive }) =>
-                `relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 font-semibold text-sm ${
-                  isActive 
-                    ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-100 shadow-md shadow-slate-900/20 dark:shadow-none' 
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                `relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 font-semibold text-sm ${isActive
+                  ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-100 shadow-md shadow-slate-900/20 dark:shadow-none'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`
               }
             >
@@ -376,11 +372,10 @@ export default function ParentDashboard() {
                   <item.icon size={20} className="shrink-0" />
                   <span>{item.name}</span>
                   {item.moduleKey === 'fees' && unpaidFeeCount > 0 ? (
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full select-none shrink-0 ml-auto animate-pulse ${
-                      hasOverdueFees 
-                        ? 'bg-red-600 text-white shadow-sm shadow-red-500/50' 
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full select-none shrink-0 ml-auto animate-pulse ${hasOverdueFees
+                        ? 'bg-red-600 text-white shadow-sm shadow-red-500/50'
                         : 'bg-amber-500 text-white shadow-sm shadow-amber-500/50'
-                    }`}>
+                      }`}>
                       {hasOverdueFees ? `${unpaidFeeCount} Overdue` : `${unpaidFeeCount} Due`}
                     </span>
                   ) : item.moduleKey && unreadCounts[item.moduleKey] > 0 ? (
@@ -405,7 +400,7 @@ export default function ParentDashboard() {
                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5">{userProfile?.role || 'Parent'}</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={handleLogout}
               className="p-2 text-slate-400 dark:text-slate-300 hover:text-red-500 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-colors shrink-0"
               title="Logout"
@@ -418,13 +413,13 @@ export default function ParentDashboard() {
 
       {/* Main Content Area Wrapper */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden gap-4 relative">
-        <TopNavbar 
-          schoolName={school?.name || school?.schoolName || 'Parent Portal'} 
+        <TopNavbar
+          schoolName={school?.name || school?.schoolName || 'Parent Portal'}
           schoolLogo={school?.branding?.logoUrl}
-          toggleSidebar={() => setIsSidebarOpen(true)} 
+          toggleSidebar={() => setIsSidebarOpen(true)}
           navItems={navItems}
         />
-        
+
         <main className="flex-1 overflow-y-auto custom-scrollbar">
           <Suspense fallback={
             <div className="flex-1 flex justify-center items-center h-[50vh]">
@@ -442,8 +437,8 @@ export default function ParentDashboard() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-scale-up">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white">Link Another Child</h3>
-              <button 
-                onClick={() => setIsLinkAnotherModalOpen(false)} 
+              <button
+                onClick={() => setIsLinkAnotherModalOpen(false)}
                 className="text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-slate-300 p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
                 <X size={20} />
@@ -459,8 +454,8 @@ export default function ParentDashboard() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Admission Number <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   value={anotherAdmission}
                   onChange={(e) => setAnotherAdmission(e.target.value)}
@@ -468,11 +463,11 @@ export default function ParentDashboard() {
                   className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1">Date of Birth <span className="text-red-500">*</span></label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   required
                   value={anotherDob}
                   onChange={(e) => setAnotherDob(e.target.value)}
@@ -481,15 +476,15 @@ export default function ParentDashboard() {
               </div>
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsLinkAnotherModalOpen(false)}
                   className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isLinkingAnother}
                   className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 shadow-sm transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
                 >

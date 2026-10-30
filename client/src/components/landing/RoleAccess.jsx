@@ -38,7 +38,7 @@ export default function RoleAccess() {
 
   return (
     <section className="py-32 px-6 max-w-7xl mx-auto overflow-hidden">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-50px" }}
@@ -46,7 +46,7 @@ export default function RoleAccess() {
         className="text-center mb-16"
       >
         <h2 className="text-4xl lg:text-5xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">Built for everyone</h2>
-        <p className="text-lg text-slate-600 dark:text-[#94a3b8] max-w-2xl mx-auto">Different roles require different tools. Quaders adapts to give you exactly what you need.</p>
+        <p className="text-lg text-slate-600 dark:text-[#94a3b8] max-w-2xl mx-auto">Different roles require different tools. queflow adapts to give you exactly what you need.</p>
       </motion.div>
 
       <div className="flex flex-col items-center max-w-4xl mx-auto">
@@ -56,9 +56,8 @@ export default function RoleAccess() {
             <button
               key={role.id}
               onClick={() => setActiveRole(role.id)}
-              className={`relative px-6 py-3 rounded-full text-sm md:text-base font-bold transition-colors whitespace-nowrap outline-none ${
-                activeRole === role.id ? 'text-white' : 'text-slate-500 dark:text-[#94a3b8] hover:text-slate-900 dark:hover:text-slate-300'
-              }`}
+              className={`relative px-6 py-3 rounded-full text-sm md:text-base font-bold transition-colors whitespace-nowrap outline-none ${activeRole === role.id ? 'text-white' : 'text-slate-500 dark:text-[#94a3b8] hover:text-slate-900 dark:hover:text-slate-300'
+                }`}
             >
               {activeRole === role.id && (
                 <motion.div
@@ -74,7 +73,7 @@ export default function RoleAccess() {
 
         {/* Content Panel */}
         <div className="w-full relative min-h-[300px] md:min-h-[250px] bg-white dark:bg-[#0f172a]/40 backdrop-blur-md border border-slate-200 dark:border-primary-900/30 rounded-3xl p-8 md:p-12 shadow-xl overflow-hidden">
-          
+
           {/* Subtle Background Glow behind the panel to maintain visual interest without 3D */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary-500/10 rounded-full blur-[80px] pointer-events-none" />
 
@@ -91,7 +90,7 @@ export default function RoleAccess() {
                 <h3 className="text-3xl font-black mb-4 text-slate-900 dark:text-white">{content.title}</h3>
                 <p className="text-slate-600 dark:text-[#94a3b8] leading-relaxed mb-6 text-lg">{content.desc}</p>
               </div>
-              
+
               <div className="bg-slate-50 dark:bg-[#020617]/60 p-6 rounded-2xl border border-slate-100 dark:border-primary-900/20 shadow-sm">
                 <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-[#94a3b8] mb-4">Key Features</h4>
                 <ul className="space-y-4">

@@ -90,11 +90,11 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
 
   const getStatusBadge = (status) => {
     const s = (status || '').toLowerCase().replace('_', '-');
-    switch(s) {
-      case 'resolved': return <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-xs font-bold flex items-center gap-1"><LuCircleCheck size={12}/> Resolved</span>;
-      case 'in-progress': return <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-xs font-bold flex items-center gap-1"><LuClock size={12}/> In Progress</span>;
-      case 'closed': return <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold flex items-center gap-1"><LuCircleCheck size={12}/> Closed</span>;
-      default: return <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold flex items-center gap-1"><LuMessageSquare size={12}/> Open</span>;
+    switch (s) {
+      case 'resolved': return <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-xs font-bold flex items-center gap-1"><LuCircleCheck size={12} /> Resolved</span>;
+      case 'in-progress': return <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-xs font-bold flex items-center gap-1"><LuClock size={12} /> In Progress</span>;
+      case 'closed': return <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold flex items-center gap-1"><LuCircleCheck size={12} /> Closed</span>;
+      default: return <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold flex items-center gap-1"><LuMessageSquare size={12} /> Open</span>;
     }
   };
 
@@ -108,11 +108,11 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
               <LuLifeBuoy size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quaders Central Support</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">queflow Central Support</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Direct live support desk for School Administrators</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
@@ -124,21 +124,19 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
         <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-5 gap-2">
           <button
             onClick={() => { setActiveTab('raise'); setSelectedTicket(null); }}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'raise'
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${activeTab === 'raise'
                 ? 'border-indigo-600 text-indigo-600 bg-white dark:bg-slate-900 rounded-t-xl'
                 : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
+              }`}
           >
             <LuPlus size={15} /> Raise New Ticket
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
-              activeTab === 'history'
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${activeTab === 'history'
                 ? 'border-indigo-600 text-indigo-600 bg-white dark:bg-slate-900 rounded-t-xl'
                 : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
+              }`}
           >
             <LuMessageSquare size={15} /> My Tickets ({myTickets.length})
           </button>
@@ -163,7 +161,7 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">
                 Issue Subject
               </label>
-              <input 
+              <input
                 type="text"
                 required
                 className="w-full px-4 py-3 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-900 dark:text-white font-medium"
@@ -193,7 +191,7 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-1">
                   Product System
                 </label>
-                <input 
+                <input
                   type="text"
                   disabled
                   value="School Management"
@@ -229,7 +227,7 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
                 disabled={loading}
                 className="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-2xl shadow-lg shadow-indigo-500/25 flex items-center gap-2 transition-all disabled:opacity-50"
               >
-                <LuSend size={14} /> {loading ? 'Submitting...' : 'Submit to Quaders Admin'}
+                <LuSend size={14} /> {loading ? 'Submitting...' : 'Submit to queflow Admin'}
               </button>
             </div>
           </form>
@@ -239,7 +237,7 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
         {activeTab === 'history' && !selectedTicket && (
           <div className="p-5 flex-1 overflow-y-auto space-y-3">
             {myTickets.map(t => (
-              <div 
+              <div
                 key={t.id}
                 onClick={() => setSelectedTicket(t)}
                 className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-slate-700 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-slate-900 flex items-center justify-between gap-3 group"
@@ -274,7 +272,7 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
           <div className="flex flex-col flex-1 overflow-hidden">
             {/* Thread Navigation Header */}
             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 flex items-center justify-between">
-              <button 
+              <button
                 onClick={() => setSelectedTicket(null)}
                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
               >
@@ -296,16 +294,15 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
               {(selectedTicket.messages || []).map((msg, i) => {
                 const isSuperAdmin = msg.senderRole === 'SUPER_ADMIN' || msg.sender === 'Agent' || msg.sender === 'SuperAdmin' || msg.role === 'superadmin';
                 const messageText = msg.message || msg.text || '';
-                const authorName = isSuperAdmin ? '⚡ Quaders SuperAdmin Support' : (msg.senderName || msg.author || 'School Admin');
+                const authorName = isSuperAdmin ? '⚡ queflow SuperAdmin Support' : (msg.senderName || msg.author || 'School Admin');
                 const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (msg.timestamp || 'Recently');
 
                 return (
                   <div key={i} className={`flex flex-col ${isSuperAdmin ? 'items-start' : 'items-end'}`}>
-                    <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs font-medium ${
-                      isSuperAdmin 
-                        ? 'bg-indigo-600 text-white rounded-tl-none shadow-sm' 
+                    <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs font-medium ${isSuperAdmin
+                        ? 'bg-indigo-600 text-white rounded-tl-none shadow-sm'
                         : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tr-none shadow-sm'
-                    }`}>
+                      }`}>
                       <div className="flex items-center justify-between gap-3 text-[10px] opacity-75 mb-1 font-bold">
                         <span>{authorName}</span>
                         <span>{timeString}</span>
@@ -319,16 +316,16 @@ export default function RaiseTicketModal({ isOpen, onClose, schoolName = 'School
 
             {/* Reply Input Box */}
             <form onSubmit={handleSendReply} className="p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Write reply to Quaders SuperAdmin..." 
+              <input
+                type="text"
+                placeholder="Write reply to queflow SuperAdmin..."
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
                 className="flex-1 px-4 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
                 required
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={sendingReply}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm disabled:opacity-50 transition-all"
               >

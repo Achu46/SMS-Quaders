@@ -46,12 +46,16 @@ export const logoutUser = async () => {
   api.setToken(null);
 };
 
-// Get Current User Profile
+// Get Current User Profile (Fresh from DB via /auth/me)
 export const getUserProfile = async () => {
   try {
     const token = api.getToken();
     if (!token) return null;
-    return await api.get('/auth/profile');
+    try {
+      return await api.get('/auth/me');
+    } catch (e) {
+      return await api.get('/auth/profile');
+    }
   } catch (error) {
     return null;
   }
@@ -62,6 +66,5 @@ export const resetPassword = async (email) => {
   return await api.post('/auth/forgot-password', { email });
 };
 
-// Token helpers for compatibility
 export const getToken = () => api.getToken();
 export const setToken = (token) => api.setToken(token);

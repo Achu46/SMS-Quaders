@@ -8,17 +8,17 @@ export default function Footer({ scrollToSection }) {
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-16">
         <div className="md:col-span-1">
           <div className="flex items-center gap-3 mb-6 cursor-pointer" onClick={() => scrollToSection('home')}>
-            <img 
-              src="/logo.png" 
-              alt="Quaders Logo" 
-              className="w-auto h-10 md:h-12 object-contain hover:scale-105 transition-transform" 
+            <img
+              src="/logo.png"
+              alt="queflow Logo"
+              className="w-auto h-10 md:h-12 object-contain hover:scale-105 transition-transform"
             />
           </div>
           <p className="text-slate-500 dark:text-[#94a3b8] font-medium leading-relaxed">
             Empowering educational institutions globally with cutting-edge cloud management technology.
           </p>
         </div>
-        
+
         <div>
           <h4 className="font-bold text-slate-900 dark:text-[#f1f5f9] mb-6 uppercase tracking-wider text-sm">Product</h4>
           <ul className="space-y-4 text-slate-500 dark:text-[#94a3b8] font-medium">
@@ -42,7 +42,7 @@ export default function Footer({ scrollToSection }) {
             </li>
           </ul>
         </div>
-        
+
         <div>
           <h4 className="font-bold text-slate-900 dark:text-[#f1f5f9] mb-6 uppercase tracking-wider text-sm">Company</h4>
           <ul className="space-y-4 text-slate-500 dark:text-[#94a3b8] font-medium">
@@ -76,9 +76,9 @@ export default function Footer({ scrollToSection }) {
           </form>
         </div>
       </div>
-      
+
       <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-slate-200 dark:border-primary-900/20 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500 dark:text-[#94a3b8] text-sm font-medium">
-        <p>&copy; {currentYear} Quaders. All rights reserved.</p>
+        <p>&copy; {currentYear} queflow. All rights reserved.</p>
         <div className="flex gap-6">
           <button className="hover:text-primary-500 transition-colors">Privacy Policy</button>
           <button className="hover:text-primary-500 transition-colors">Terms of Service</button>

@@ -8,10 +8,10 @@ const { authenticateToken, requireTenantAccess, requireRole } = require('../midd
 // =========================================================================
 router.post('/webhook', async (req, res) => {
   try {
-    const signature = req.headers['x-webhook-signature'] || 
-                      req.headers['x-razorpay-signature'] || 
-                      req.headers['stripe-signature'];
-    const secret = process.env.PAYMENT_WEBHOOK_SECRET || 'quaders_webhook_secret_dev';
+    const signature = req.headers['x-webhook-signature'] ||
+      req.headers['x-razorpay-signature'] ||
+      req.headers['stripe-signature'];
+    const secret = process.env.PAYMENT_WEBHOOK_SECRET || 'queflow_webhook_secret_dev';
 
     if (!signature) {
       return res.status(401).json({ error: 'Webhook signature header missing' });
@@ -50,13 +50,13 @@ router.post('/webhook', async (req, res) => {
 
     const prisma = req.prisma;
     const body = req.body || {};
-    const invoiceId = body.invoiceId || 
-                      body.data?.object?.metadata?.invoiceId || 
-                      body.payload?.payment?.entity?.notes?.invoiceId;
-    const transactionId = body.transactionId || 
-                          body.data?.object?.id || 
-                          body.payload?.payment?.entity?.id || 
-                          `tx_${Date.now()}`;
+    const invoiceId = body.invoiceId ||
+      body.data?.object?.metadata?.invoiceId ||
+      body.payload?.payment?.entity?.notes?.invoiceId;
+    const transactionId = body.transactionId ||
+      body.data?.object?.id ||
+      body.payload?.payment?.entity?.id ||
+      `tx_${Date.now()}`;
 
     if (!invoiceId) {
       return res.status(400).json({ error: 'Invoice ID missing from webhook payload' });
@@ -187,7 +187,7 @@ router.get('/invoices', authenticateToken, requireTenantAccess, async (req, res)
         include: { students: true }
       });
       const allowedStudentIds = parent?.students.map(s => s.studentId) || [];
-      
+
       if (studentId) {
         if (!allowedStudentIds.includes(studentId)) {
           return res.status(403).json({ error: 'Unauthorized to view fee details for this student' });

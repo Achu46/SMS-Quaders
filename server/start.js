@@ -1,51 +1,62 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { exec } = require('child_process');
-const { startLocalDatabase, isPortOpen } = require('./localDb');
 
 console.log('==============================================');
-console.log('🚀 [Quaders Startup] Starting server environment...');
+console.log('🚀 [Queflow Startup] Starting server environment...');
 console.log('==============================================');
 
-async function boot() {
+// 1. Immediately boot Express HTTP & Socket.IO server
+// This binds 0.0.0.0:${PORT} within < 50ms so Railway / Cloud health checks pass instantly
+try {
+  require('./index.js');
+  console.log('⚡ [Queflow Startup] Express & Socket.IO server loaded successfully.');
+} catch (err) {
+  console.error('CRITICAL: Failed to load Express application:', err);
+}
+
+// 2. Non-blocking background initialization (database, migrations, local db if applicable)
+(async () => {
   const dbUrl = process.env.DATABASE_URL || '';
   const isLocalDb = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+  const isCloud = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL || process.env.NODE_ENV === 'production');
 
-  // If local development requires PostgreSQL and port 5432 is closed, boot embedded PostgreSQL
-  if (isLocalDb) {
-    const running = await isPortOpen(5432);
-    if (!running) {
-      console.log('🗄️ [Quaders Startup] Local PostgreSQL not detected on port 5432. Launching embedded database...');
-      try {
+  // If local offline development and local database is not running
+  if (isLocalDb && !isCloud) {
+    try {
+      const { startLocalDatabase, isPortOpen } = require('./localDb');
+      const running = await isPortOpen(5432);
+      if (!running) {
+        console.log('🗄️ [Queflow Startup] Local PostgreSQL not detected on port 5432. Launching embedded database...');
         await startLocalDatabase();
-      } catch (err) {
-        console.warn('⚠️ [Quaders Startup] Failed to start local embedded PostgreSQL:', err.message);
+      } else {
+        console.log('✅ [Queflow Startup] Detected active PostgreSQL server on port 5432.');
       }
-    } else {
-      console.log('✅ [Quaders Startup] Detected active PostgreSQL server on port 5432.');
+    } catch (err) {
+      console.warn('⚠️ [Queflow Startup] Local embedded database notice:', err.message);
     }
   }
 
-  // 1. Boot Express HTTP & Socket.IO server
-  require('./index.js');
+  // 3. Sync database schema in background without blocking web traffic or port checks
+  if (dbUrl) {
+    const maskedUrl = dbUrl.replace(/:[^:@]+@/, ':***@');
+    console.log(`🗄️ [Queflow Startup] Database URL detected (${maskedUrl}). Initiating background schema sync...`);
+    
+    const schemaPath = path.join(__dirname, 'prisma', 'schema.prisma');
+    const cmd = `npx --no-install prisma db push --accept-data-loss --skip-generate --schema="${schemaPath}"`;
 
-  // 2. Run database schema sync in background without blocking server health checks
-  if (process.env.DATABASE_URL) {
-    console.log('🗄️ [Quaders Startup] Initiating background schema sync (prisma db push --accept-data-loss --skip-generate)...');
-    exec('npx prisma db push --accept-data-loss --skip-generate', (err, stdout, stderr) => {
+    exec(cmd, { cwd: __dirname }, (err, stdout, stderr) => {
       if (err) {
-        console.warn('⚠️ [Quaders Startup] Background DB sync notice:', err.message);
+        console.warn('⚠️ [Queflow Startup] Background DB sync notice:', err.message);
         if (stderr) console.warn(stderr);
       } else {
-        console.log('✅ [Quaders Startup] Background database sync completed successfully.');
+        console.log('✅ [Queflow Startup] Background database schema sync completed successfully.');
         if (stdout) console.log(stdout);
       }
     });
   } else {
-    console.warn('⚠️ [Quaders Startup] DATABASE_URL is not defined in environment variables.');
+    console.warn('⚠️ [Queflow Startup] DATABASE_URL is not defined in environment variables.');
   }
-}
-
-boot().catch((err) => {
-  console.error('CRITICAL: Server startup failed:', err);
-  process.exit(1);
+})().catch(err => {
+  console.warn('⚠️ [Queflow Startup] Background initialization warning:', err.message);
 });

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 // 3D centerpiece: cluster of abstract shapes
 function AbstractObject({ reducedMotion }) {
   const meshRef = useRef(null);
-  
+
   useFrame((state) => {
     if (meshRef.current && !reducedMotion) {
       meshRef.current.rotation.x = state.clock.elapsedTime * 0.15;
@@ -20,7 +20,7 @@ function AbstractObject({ reducedMotion }) {
     <Float speed={reducedMotion ? 0 : 2} rotationIntensity={reducedMotion ? 0 : 1.5} floatIntensity={reducedMotion ? 0 : 2}>
       <mesh ref={meshRef} position={[0, 0, -2]} scale={1.2}>
         <icosahedronGeometry args={[2, 1]} />
-        <MeshDistortMaterial 
+        <MeshDistortMaterial
           color="#F97316"
           emissive="#FB923C"
           emissiveIntensity={0.2}
@@ -28,8 +28,8 @@ function AbstractObject({ reducedMotion }) {
           metalness={0.1}
           clearcoat={1}
           clearcoatRoughness={0.1}
-          distort={reducedMotion ? 0 : 0.3} 
-          speed={reducedMotion ? 0 : 2} 
+          distort={reducedMotion ? 0 : 0.3}
+          speed={reducedMotion ? 0 : 2}
           transparent
           opacity={0.15}
         />
@@ -57,10 +57,10 @@ export default function Hero({ scrollToSection }) {
       }
       setIsDarkMode(document.documentElement.classList.contains('dark'));
     };
-    
+
     checkPerformance();
     window.addEventListener('resize', checkPerformance);
-    
+
     const observer = new MutationObserver(() => {
       setIsDarkMode(document.documentElement.classList.contains('dark'));
     });
@@ -107,10 +107,10 @@ export default function Hero({ scrollToSection }) {
 
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center pt-24 pb-16 overflow-hidden bg-slate-50 dark:bg-[#020617] transition-colors duration-300">
-      
+
       {/* Background Animated Gradient Blobs */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20 dark:opacity-10">
-        <motion.div 
+        <motion.div
           animate={{
             x: [0, 50, 0],
             y: [0, -50, 0],
@@ -119,7 +119,7 @@ export default function Hero({ scrollToSection }) {
           transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
           className="absolute -top-1/4 -right-1/4 w-full max-w-3xl h-[600px] bg-primary-300 dark:bg-primary-500 rounded-full blur-[150px]"
         />
-        <motion.div 
+        <motion.div
           animate={{
             x: [0, -50, 0],
             y: [0, 50, 0],
@@ -132,7 +132,7 @@ export default function Hero({ scrollToSection }) {
 
       {/* 3D Canvas Background */}
       {!reducedMotion ? (
-        <motion.div 
+        <motion.div
           className="absolute inset-0 z-10 pointer-events-none"
           style={{ x: springX, y: springY }}
         >
@@ -157,12 +157,11 @@ export default function Hero({ scrollToSection }) {
 
           <div className="flex flex-wrap justify-center gap-x-3 mb-6">
             {titleText.map((word, i) => (
-              <motion.span 
-                key={i} 
-                variants={itemVars} 
-                className={`text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1.1] ${
-                  i >= 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-300" : "text-slate-900 dark:text-white"
-                }`}
+              <motion.span
+                key={i}
+                variants={itemVars}
+                className={`text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter leading-[1.1] ${i >= 3 ? "text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-300" : "text-slate-900 dark:text-white"
+                  }`}
               >
                 {word}
               </motion.span>
@@ -173,7 +172,7 @@ export default function Hero({ scrollToSection }) {
             variants={itemVars}
             className="text-lg lg:text-xl text-slate-600 dark:text-[#94a3b8] max-w-2xl mx-auto mb-8 leading-relaxed"
           >
-            Quaders is the modern all-in-one ERP platform for schools. Manage student records, fees, attendance, examinations, and staff operations with real-time accuracy.
+            queflow is the modern all-in-one ERP platform for schools. Manage student records, fees, attendance, examinations, and staff operations with real-time accuracy.
           </motion.p>
 
           {/* Action CTAs */}
@@ -181,13 +180,13 @@ export default function Hero({ scrollToSection }) {
             variants={itemVars}
             className="flex flex-col sm:flex-row gap-3.5 justify-center items-center mb-10"
           >
-            <button 
+            <button
               onClick={() => navigate('/register')}
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-primary-600 to-primary-400 text-white font-bold text-base sm:text-lg rounded-full hover:scale-105 hover:shadow-[0_0_40px_rgba(249,115,22,0.4)] transition-all duration-300 flex items-center justify-center gap-2"
             >
               Get Started <LuChevronRight size={20} />
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection('services')}
               className="w-full sm:w-auto px-7 py-4 bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-white font-bold text-base sm:text-lg rounded-full hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
             >

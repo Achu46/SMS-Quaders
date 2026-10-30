@@ -1,6 +1,39 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('./prismaClient');
 
+// --- Short-TTL In-Memory Permissions Cache ---
+// Key: `${roleId}:${permissionsVersion}` -> { role, timestamp }
+const roleCache = new Map();
+const ROLE_CACHE_TTL_MS = 30000; // 30 seconds TTL
+
+function getCachedRole(roleId, permissionsVersion) {
+  if (!roleId) return null;
+  const key = `${roleId}:${permissionsVersion || 1}`;
+  const entry = roleCache.get(key);
+  if (entry && (Date.now() - entry.timestamp < ROLE_CACHE_TTL_MS)) {
+    return entry.role;
+  }
+  return null;
+}
+
+function setCachedRole(roleId, permissionsVersion, role) {
+  if (!roleId) return;
+  const key = `${roleId}:${permissionsVersion || 1}`;
+  roleCache.set(key, { role, timestamp: Date.now() });
+}
+
+function invalidateRoleCache(roleId) {
+  if (!roleId) {
+    roleCache.clear();
+    return;
+  }
+  for (const k of roleCache.keys()) {
+    if (k.startsWith(`${roleId}:`)) {
+      roleCache.delete(k);
+    }
+  }
+}
+
 // Middleware to verify JWT and extract user context
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -39,6 +72,7 @@ const authenticateToken = async (req, res, next) => {
           req.user.customRole = user.customRole;
           req.user.roleId = user.roleId;
           req.user.staffRole = user.staffRole;
+          req.user.permissionsVersion = user.customRole ? user.customRole.permissionsVersion : (decodedUser.permissionsVersion || 1);
         }
       } catch (dbErr) {
         console.error('Failed to attach user context:', dbErr);
@@ -185,7 +219,7 @@ const hasPermission = (customRoleOrStaffRole, moduleKey, action = 'VIEW') => {
   const actionNormalized = action.toUpperCase();
   const moduleNormalized = moduleKey.toLowerCase().replace(/\s+/g, '-');
 
-  // Case 1: New RolePermission[] relation array
+  // Case 1: RolePermission[] relation array
   if (customRoleOrStaffRole.permissions && Array.isArray(customRoleOrStaffRole.permissions)) {
     const perm = customRoleOrStaffRole.permissions.find(
       p => p && typeof p === 'object' && p.moduleKey && p.moduleKey.toLowerCase().replace(/\s+/g, '-') === moduleNormalized
@@ -241,28 +275,70 @@ const requirePermission = (moduleKey, action = 'VIEW') => {
 
     if (userRole === 'STAFF') {
       try {
+        const userId = req.user.id;
+        
+        // Find staff member's current role linkage from DB
         const user = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { 
-            customRole: {
-              include: { permissions: true }
-            },
-            staffRole: true 
-          }
+          where: { id: userId },
+          select: { id: true, roleId: true, staffRoleId: true }
         });
 
-        const activeRole = user ? (user.customRole || user.staffRole) : null;
-
-        if (!activeRole) {
-          return res.status(403).json({ error: 'No staff role assigned to this account', code: 'NO_STAFF_ROLE' });
+        if (!user || (!user.roleId && !user.staffRoleId)) {
+          return res.status(403).json({ 
+            error: 'No staff role assigned to this account. Contact your school administrator.', 
+            code: 'NO_STAFF_ROLE' 
+          });
         }
 
-        if (!hasPermission(activeRole, moduleKey, action)) {
+        const roleId = user.roleId;
+
+        // Fetch fresh role and check permissionsVersion
+        let role = null;
+        if (roleId) {
+          // Check role from DB to get the authoritative permissionsVersion
+          const dbRole = await prisma.role.findUnique({
+            where: { id: roleId },
+            include: { permissions: true }
+          });
+
+          if (!dbRole) {
+            return res.status(403).json({ error: 'Assigned role does not exist', code: 'ROLE_NOT_FOUND' });
+          }
+
+          const currentVersion = dbRole.permissionsVersion || 1;
+          const tokenVersion = req.user.permissionsVersion || 0;
+
+          // If the token version differs from current DB version, mark header so client refreshes
+          if (tokenVersion !== currentVersion && typeof res.setHeader === 'function') {
+            res.setHeader('X-Permissions-Changed', 'true');
+            res.setHeader('Access-Control-Expose-Headers', 'X-Permissions-Changed');
+          }
+
+          // Check if cached
+          const cached = getCachedRole(roleId, currentVersion);
+          if (cached) {
+            role = cached;
+          } else {
+            role = dbRole;
+            setCachedRole(roleId, currentVersion, dbRole);
+          }
+        } else if (user.staffRoleId) {
+          role = await prisma.staffRole.findUnique({
+            where: { id: user.staffRoleId }
+          });
+        }
+
+        if (!role) {
+          return res.status(403).json({ error: 'No active role found for this account', code: 'NO_STAFF_ROLE' });
+        }
+
+        if (!hasPermission(role, moduleKey, action)) {
           return res.status(403).json({ 
             error: `Access denied: missing ${action} permission for module ${moduleKey}`,
             code: 'PERMISSION_DENIED',
             module: moduleKey,
-            action
+            action,
+            permissionsChanged: Boolean(typeof res.getHeader === 'function' ? res.getHeader('X-Permissions-Changed') : false)
           });
         }
 
@@ -320,5 +396,6 @@ module.exports = {
   requirePermission,
   requireModulePermission: requirePermission,
   requireClassAccess,
-  hasPermission
+  hasPermission,
+  invalidateRoleCache
 };
