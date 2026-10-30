@@ -95,19 +95,64 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('quaders:permissions_changed', handlePermChange);
   }, [updateProfileData]);
 
-  // 3. Socket.IO real-time event listener for live permission updates without reload
+  // 3. Socket.IO real-time event listener & auto-join tenant room
   useEffect(() => {
     if (!socket) return;
 
     const handleSocketPermUpdate = (payload) => {
-      updateProfileData();
+      if (!payload || !payload.schoolId || payload.schoolId === userProfile?.schoolId) {
+        updateProfileData();
+      }
     };
 
     socket.on('permissions-updated', handleSocketPermUpdate);
+
+    if (userProfile?.schoolId) {
+      const token = getToken();
+      socket.emit('join_tenant', { schoolId: userProfile.schoolId, token });
+    }
+
     return () => {
       socket.off('permissions-updated', handleSocketPermUpdate);
     };
+  }, [userProfile?.schoolId, updateProfileData]);
+
+  // 4. Cross-tab real-time BroadcastChannel sync (Admin tab -> Staff tab in same browser)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
+    const channel = new BroadcastChannel('queflow_perm_sync');
+    channel.onmessage = (event) => {
+      if (event.data === 'permissions-changed') {
+        updateProfileData();
+      }
+    };
+    return () => {
+      try { channel.close(); } catch (_) {}
+    };
   }, [updateProfileData]);
+
+  // 5. Periodic lightweight heartbeat for staff (syncs within 8 seconds even without sockets)
+  useEffect(() => {
+    if (!userProfile || userProfile.role !== 'staff') return;
+
+    const interval = setInterval(() => {
+      const token = getToken();
+      if (!token || document.visibilityState !== 'visible') return;
+
+      getUserProfile().then(fresh => {
+        if (fresh && (
+          fresh.permissionsVersion !== userProfile.permissionsVersion ||
+          fresh.roleId !== userProfile.roleId ||
+          JSON.stringify(fresh.permissions) !== JSON.stringify(userProfile.permissions)
+        )) {
+          if (fresh.token) setToken(fresh.token);
+          setUserProfile(prev => ({ ...prev, ...fresh, uid: fresh.id }));
+        }
+      }).catch(() => {});
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [userProfile]);
 
   // Function to wrap login so context updates immediately
   const handleAuthChange = () => {

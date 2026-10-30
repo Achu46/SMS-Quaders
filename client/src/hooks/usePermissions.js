@@ -88,7 +88,12 @@ export default function usePermissions() {
     if (!permissions || !moduleKey) return false;
     const key = moduleKey.toLowerCase().replace(/\s+/g, '-');
     const p = permissions[key] || permissions[moduleKey];
-    return p ? (p.canRead === true || p.read === true || p.view === true) : false;
+    return p ? Boolean(
+      p.canRead || p.read || p.view ||
+      p.canCreate || p.create ||
+      p.canUpdate || p.edit ||
+      p.canDelete || p.delete
+    ) : false;
   };
 
   const canCreate = (moduleKey) => {

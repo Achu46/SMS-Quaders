@@ -61,13 +61,10 @@ router.get('/:id', async (req, res) => {
     // Attempt to load extra settings persisted in SchoolDocument
     let extraSettings = {};
     try {
-      const doc = await prisma.schoolDocument.findUnique({
+      const doc = await prisma.schoolDocument.findFirst({
         where: {
-          schoolId_collection_docId: {
-            schoolId: req.params.id,
-            collection: 'settings',
-            docId: 'environment_setup'
-          }
+          schoolId: req.params.id,
+          collection: 'settings'
         }
       });
       if (doc && doc.data && typeof doc.data === 'object') {
@@ -162,34 +159,29 @@ async function updateSchoolDetailsHandler(req, res) {
 
     // Upsert full environment / branding metadata in SchoolDocument
     try {
-      await prisma.schoolDocument.upsert({
-        where: {
-          schoolId_collection_docId: {
+      const settingsPayload = {
+        website: website || '',
+        academicConfig: academicConfig || { currentYear: '2026-2027', termType: 'Semester' },
+        customData: customData || {},
+        branding: branding || { logoUrl: resolvedLogo || '' }
+      };
+      const existingSettings = await prisma.schoolDocument.findFirst({
+        where: { schoolId, collection: 'settings' }
+      });
+      if (existingSettings) {
+        await prisma.schoolDocument.update({
+          where: { id: existingSettings.id },
+          data: { data: settingsPayload }
+        });
+      } else {
+        await prisma.schoolDocument.create({
+          data: {
             schoolId,
             collection: 'settings',
-            docId: 'environment_setup'
+            data: settingsPayload
           }
-        },
-        create: {
-          schoolId,
-          collection: 'settings',
-          docId: 'environment_setup',
-          data: {
-            website: website || '',
-            academicConfig: academicConfig || { currentYear: '2026-2027', termType: 'Semester' },
-            customData: customData || {},
-            branding: branding || { logoUrl: resolvedLogo || '' }
-          }
-        },
-        update: {
-          data: {
-            website: website || '',
-            academicConfig: academicConfig || { currentYear: '2026-2027', termType: 'Semester' },
-            customData: customData || {},
-            branding: branding || { logoUrl: resolvedLogo || '' }
-          }
-        }
-      });
+        });
+      }
     } catch (docErr) {
       console.warn('Could not persist environment_setup document:', docErr.message);
     }

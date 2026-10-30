@@ -206,7 +206,8 @@ export default function AdminDashboard() {
       if (item.moduleKey && adminOnlyKeys.includes(item.moduleKey)) return false;
       
       if (!item.moduleKey && item.name === 'Dashboard') return true;
-      if (item.moduleKey) return canRead(item.moduleKey);
+      if (item.moduleKey && canRead(item.moduleKey)) return true;
+      if (item.subItems && item.subItems.some(sub => canRead(sub.moduleKey || sub.path.replace('/admin/', '')))) return true;
       return false;
     }
 

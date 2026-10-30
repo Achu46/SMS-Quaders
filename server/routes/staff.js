@@ -479,13 +479,15 @@ router.patch('/:id/role', requirePermission('staff', 'EDIT'), async (req, res) =
 
     // Emit socket real-time update
     if (req.io) {
-      req.io.to(collegeId).emit('permissions-updated', {
+      const staffSocketPayload = {
         schoolId: collegeId,
         staffId: req.params.id,
         roleId: role.id,
         roleName: role.name,
         type: 'STAFF_ROLE_CHANGED'
-      });
+      };
+      req.io.to(collegeId).emit('permissions-updated', staffSocketPayload);
+      req.io.emit('permissions-updated', staffSocketPayload);
     }
 
     const { password: _, ...staffWithoutPassword } = updated;

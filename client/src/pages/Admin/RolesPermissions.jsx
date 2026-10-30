@@ -239,6 +239,16 @@ export default function RolesPermissions() {
       const res = await api.put(`/roles/${activeRoleId}`, payload);
       toast.success(`Role "${editedRoleName}" updated successfully!`);
 
+      // Notify all tabs/windows in the browser immediately via BroadcastChannel & custom event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('quaders:permissions_changed'));
+        try {
+          const channel = new BroadcastChannel('queflow_perm_sync');
+          channel.postMessage('permissions-changed');
+          channel.close();
+        } catch (_) {}
+      }
+
       // Update in local list
       setRoles(prev => prev.map(r => r.id === activeRoleId ? res.role : r));
       selectRole(res.role);

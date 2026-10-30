@@ -298,15 +298,17 @@ router.put('/:roleId', async (req, res) => {
     // Invalidate server cache
     invalidateRoleCache(roleId);
 
-    // Broadcast real-time permissions update to all connected sessions in tenant room
+    // Broadcast real-time permissions update to all connected sessions in tenant room & global broadcast
     if (req.io) {
-      req.io.to(collegeId).emit('permissions-updated', {
+      const socketPayload = {
         schoolId: collegeId,
         roleId,
         roleName: updatedRole.name,
         permissionsVersion: updatedRole.permissionsVersion,
         type: 'ROLE_UPDATED'
-      });
+      };
+      req.io.to(collegeId).emit('permissions-updated', socketPayload);
+      req.io.emit('permissions-updated', socketPayload);
     }
 
     res.json({ message: 'Role updated successfully', role: updatedRole });

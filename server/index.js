@@ -27,7 +27,8 @@ const corsOptions = {
   origin: corsOriginHandler,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'X-Requested-With'],
+  exposedHeaders: ['X-Permissions-Changed', 'Access-Control-Expose-Headers']
 };
 
 const app = express();
@@ -85,6 +86,14 @@ io.use((socket, next) => {
 
 // Socket.io for Real-Time (Leaves, Fees, Attendance)
 io.on('connection', (socket) => {
+  // Auto-join tenant room if authenticated in handshake
+  if (socket.user?.schoolId) {
+    socket.join(socket.user.schoolId);
+    console.log(`Socket ${socket.id} auto-joined tenant room ${socket.user.schoolId}`);
+  }
+  if (socket.user?.id) {
+    socket.join(`user:${socket.user.id}`);
+  }
   console.log(`User connected: ${socket.id} (user: ${socket.user?.id || 'anonymous'})`);
 
   socket.on('join_tenant', (payload) => {
