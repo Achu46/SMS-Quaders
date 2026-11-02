@@ -292,10 +292,10 @@ export default function TenantManagement() {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold">
-                          {school.schoolName?.charAt(0) || 'S'}
+                          {(school.schoolName || school.name)?.charAt(0) || 'S'}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-white">{school.schoolName}</div>
+                          <div className="font-bold text-slate-900 dark:text-white">{school.schoolName || school.name}</div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">ID: {school.id}</div>
                         </div>
                       </div>
@@ -336,9 +336,9 @@ export default function TenantManagement() {
                           school.status === 'pending' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 
                           'bg-red-100 text-red-700 border border-red-200'}`}
                       >
-                        {school.status === 'approved' && <CheckCircle2 size={12} />}
-                        {school.status === 'pending' && <AlertCircle size={12} />}
-                        {school.status === 'suspended' && <Ban size={12} />}
+                        {['approved', 'active'].includes((school.status || '').toLowerCase()) && <CheckCircle2 size={12} />}
+                        {(school.status || '').toLowerCase() === 'pending' && <AlertCircle size={12} />}
+                        {(school.status || '').toLowerCase() === 'suspended' && <Ban size={12} />}
                         {school.status}
                       </span>
                     </td>

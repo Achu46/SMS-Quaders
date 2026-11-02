@@ -32,7 +32,22 @@ router.get('/', authenticateToken, requireRole(['SUPER_ADMIN']), async (req, res
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(schools);
+
+    const formatted = schools.map(s => {
+      const admin = (s.users && s.users[0]) || {};
+      return {
+        ...s,
+        schoolName: s.name,
+        name: s.name,
+        adminName: admin.name || '',
+        adminEmail: admin.email || '',
+        adminPhone: admin.phone || s.phone || '',
+        plan: s.plan || 'enterprise',
+        modules: s.modules || { library: true, transport: true, hostel: false }
+      };
+    });
+
+    res.json(formatted);
   } catch (error) {
     console.error('Fetch schools error:', error);
     res.status(500).json({ error: 'Failed to fetch schools' });

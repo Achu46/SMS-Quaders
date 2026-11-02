@@ -70,13 +70,19 @@ export default function Overview() {
   }
 
   // Calculate Metrics
-  const activeSchools = schools.filter(s => s.status === 'approved');
-  const pendingSchools = schools.filter(s => s.status === 'pending');
-  const suspendedSchools = schools.filter(s => s.status === 'suspended');
+  // Calculate Metrics
+  const isApproved = (s) => ['approved', 'active'].includes((s.status || '').toLowerCase());
+  const isPending = (s) => (s.status || '').toLowerCase() === 'pending';
+  const isSuspended = (s) => (s.status || '').toLowerCase() === 'suspended';
+
+  const activeSchools = schools.filter(isApproved);
+  const pendingSchools = schools.filter(isPending);
+  const suspendedSchools = schools.filter(isSuspended);
 
   // Calculate MRR
   const mrr = activeSchools.reduce((total, school) => {
-    const price = planPrices[school.plan?.toLowerCase()] || 0;
+    const planKey = (school.plan || 'enterprise').toLowerCase();
+    const price = planPrices[planKey] || planPrices.enterprise || 199;
     return total + price;
   }, 0);
 
@@ -175,24 +181,24 @@ export default function Overview() {
               <div key={school.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-slate-500 dark:text-slate-400">
-                    {school.schoolName?.charAt(0) || 'S'}
+                    {(school.schoolName || school.name)?.charAt(0) || 'S'}
                   </div>
                   <div>
-                    <h4 className="font-bold text-slate-900 dark:text-white">{school.schoolName}</h4>
+                    <h4 className="font-bold text-slate-900 dark:text-white">{school.schoolName || school.name}</h4>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(school.createdAt).toLocaleDateString('en-GB')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                    {school.plan}
+                    {school.plan || 'ENTERPRISE'}
                   </span>
                   <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1
-                    ${school.status === 'approved' ? 'bg-green-100 text-green-700' : 
-                      school.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                    ${isApproved(school) ? 'bg-green-100 text-green-700' : 
+                      isPending(school) ? 'bg-amber-100 text-amber-700' : 
                       'bg-red-100 text-red-700'}`}
                   >
-                    {school.status === 'approved' && <CheckCircle2 size={12} />}
-                    {school.status === 'pending' && <AlertCircle size={12} />}
+                    {isApproved(school) && <CheckCircle2 size={12} />}
+                    {isPending(school) && <AlertCircle size={12} />}
                     {school.status.toUpperCase()}
                   </span>
                 </div>

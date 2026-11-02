@@ -3,18 +3,26 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 class ApiClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
+    this.memoryToken = null;
   }
 
   getToken() {
-    return localStorage.getItem('token');
+    try {
+      return localStorage.getItem('token') || this.memoryToken;
+    } catch (_) {
+      return this.memoryToken;
+    }
   }
 
   setToken(token) {
-    if (token) {
-      localStorage.setItem('token', token);
-    } else {
-      localStorage.removeItem('token');
-    }
+    this.memoryToken = token || null;
+    try {
+      if (token) {
+        localStorage.setItem('token', token);
+      } else {
+        localStorage.removeItem('token');
+      }
+    } catch (_) {}
   }
 
   async request(endpoint, options = {}) {

@@ -1,16 +1,10 @@
+import { api } from '../services/api';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 // Helper to store token
-export const setToken = (token) => {
-  if (token) {
-    localStorage.setItem('token', token);
-  } else {
-    localStorage.removeItem('token');
-  }
-};
-
-// Helper to get token
-export const getToken = () => localStorage.getItem('token');
+export const setToken = (token) => api.setToken(token);
+export const getToken = () => api.getToken();
 
 // Register User
 export const registerUser = async (email, password, role, additionalData = {}) => {
