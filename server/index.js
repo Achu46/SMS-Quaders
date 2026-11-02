@@ -120,8 +120,10 @@ io.on('connection', (socket) => {
     const userSchoolId = user.schoolId;
 
     if (userRole === 'SUPER_ADMIN' || (userSchoolId && userSchoolId === schoolId)) {
-      socket.join(schoolId);
-      console.log(`Socket ${socket.id} joined tenant room ${schoolId}`);
+      if (!socket.rooms.has(schoolId)) {
+        socket.join(schoolId);
+        console.log(`Socket ${socket.id} joined tenant room ${schoolId}`);
+      }
     } else {
       console.warn(`Unauthorized join_tenant attempt: Socket ${socket.id} (user school: ${userSchoolId}) -> target: ${schoolId}`);
       socket.emit('error', { message: 'Tenant access denied', code: 'TENANT_ACCESS_DENIED' });

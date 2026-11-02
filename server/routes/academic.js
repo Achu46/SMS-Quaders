@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireActiveSchool, requireRole } = require('../middleware');
+const { authenticateToken, requireActiveSchool, requireRole, requirePermission } = require('../middleware');
 
 // All academic setup routes are protected by authentication, active school check, and Admin role
-router.use(authenticateToken, requireActiveSchool, requireRole(['ADMIN', 'SUPER_ADMIN']));
+router.use(authenticateToken, requireActiveSchool);
 
 // GET /api/academic/setup-status
 // Checks if the school has satisfied academic preconditions
-router.get('/setup-status', async (req, res) => {
+router.get('/setup-status', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
@@ -54,7 +54,7 @@ router.get('/setup-status', async (req, res) => {
 
 // POST /api/academic/profile
 // Updates School basic information & board
-router.post('/profile', async (req, res) => {
+router.post('/profile', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
@@ -81,7 +81,7 @@ router.post('/profile', async (req, res) => {
 // --- ACADEMIC YEARS ---
 
 // GET /api/academic/years
-router.get('/years', async (req, res) => {
+router.get('/years', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const years = await prisma.academicYear.findMany({
@@ -96,7 +96,7 @@ router.get('/years', async (req, res) => {
 });
 
 // POST /api/academic/years
-router.post('/years', async (req, res) => {
+router.post('/years', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const { name, startDate, endDate, isCurrent } = req.body;
@@ -131,7 +131,7 @@ router.post('/years', async (req, res) => {
 });
 
 // PUT /api/academic/years/:id
-router.put('/years/:id', async (req, res) => {
+router.put('/years/:id', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const { name, startDate, endDate, isCurrent } = req.body;
@@ -169,7 +169,7 @@ router.put('/years/:id', async (req, res) => {
 });
 
 // DELETE /api/academic/years/:id
-router.delete('/years/:id', async (req, res) => {
+router.delete('/years/:id', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
@@ -194,7 +194,7 @@ router.delete('/years/:id', async (req, res) => {
 // --- CLASSES & SECTIONS ---
 
 // GET /api/academic/classes
-router.get('/classes', async (req, res) => {
+router.get('/classes', requirePermission('classes', 'VIEW'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const classes = await prisma.class.findMany({
@@ -217,7 +217,7 @@ router.get('/classes', async (req, res) => {
 });
 
 // POST /api/academic/classes
-router.post('/classes', async (req, res) => {
+router.post('/classes', requirePermission('classes', 'CREATE'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const { name, academicYearId, sections } = req.body;
@@ -251,7 +251,7 @@ router.post('/classes', async (req, res) => {
 });
 
 // PUT /api/academic/classes/:id
-router.put('/classes/:id', async (req, res) => {
+router.put('/classes/:id', requirePermission('classes', 'EDIT'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const { name, academicYearId } = req.body;
@@ -289,7 +289,7 @@ router.put('/classes/:id', async (req, res) => {
 });
 
 // DELETE /api/academic/classes/:id
-router.delete('/classes/:id', async (req, res) => {
+router.delete('/classes/:id', requirePermission('classes', 'DELETE'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
@@ -312,7 +312,7 @@ router.delete('/classes/:id', async (req, res) => {
 });
 
 // POST /api/academic/classes/:classId/sections
-router.post('/classes/:classId/sections', async (req, res) => {
+router.post('/classes/:classId/sections', requirePermission('classes', 'CREATE'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const { name } = req.body;
@@ -345,7 +345,7 @@ router.post('/classes/:classId/sections', async (req, res) => {
 });
 
 // DELETE /api/academic/sections/:id
-router.delete('/sections/:id', async (req, res) => {
+router.delete('/sections/:id', requirePermission('classes', 'DELETE'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
@@ -370,7 +370,7 @@ router.delete('/sections/:id', async (req, res) => {
 // --- SUBJECTS ---
 
 // GET /api/academic/subjects
-router.get('/subjects', async (req, res) => {
+router.get('/subjects', requirePermission('subjects', 'VIEW'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const subjects = await prisma.subject.findMany({
@@ -388,7 +388,7 @@ router.get('/subjects', async (req, res) => {
 });
 
 // POST /api/academic/subjects
-router.post('/subjects', async (req, res) => {
+router.post('/subjects', requirePermission('subjects', 'CREATE'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const { name, code, classId } = req.body;
@@ -414,7 +414,7 @@ router.post('/subjects', async (req, res) => {
 });
 
 // DELETE /api/academic/subjects/:id
-router.delete('/subjects/:id', async (req, res) => {
+router.delete('/subjects/:id', requirePermission('subjects', 'DELETE'), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;
@@ -440,7 +440,7 @@ router.delete('/subjects/:id', async (req, res) => {
 
 // POST /api/academic/complete-setup
 // Finalizes setup and unlocks all downstream operational modules
-router.post('/complete-setup', async (req, res) => {
+router.post('/complete-setup', requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const prisma = req.prisma;
     const schoolId = req.user.schoolId;

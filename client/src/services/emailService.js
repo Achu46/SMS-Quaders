@@ -2,7 +2,7 @@ import { api } from './api';
 
 /**
  * Dispatches an email through the secure backend email service.
- * Never exposes email credentials (SMTP/Resend) to the browser.
+ * Never exposes email credentials to the browser.
  * 
  * @param {Object} options 
  * @param {string} options.to - Recipient email

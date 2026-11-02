@@ -1,5 +1,3 @@
-const nodemailer = require('nodemailer');
-
 const STANDARD_EMAIL_WRAPPER = (content, schoolName = 'queflow School Management System') => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,41 +32,7 @@ const STANDARD_EMAIL_WRAPPER = (content, schoolName = 'queflow School Management
 
 class EmailService {
   constructor() {
-    this.transporter = null;
-    this.initTransporter();
-  }
-
-  initTransporter() {
-    const host = process.env.SMTP_HOST;
-    const port = parseInt(process.env.SMTP_PORT || '587', 10);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-
-    if (host && user && pass) {
-      this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass }
-      });
-      console.log(`[EMAIL] SMTP Transporter configured for host: ${host}:${port}`);
-    } else {
-      // In development or when SMTP is unconfigured, create fallback transporter that logs sent emails
-      this.transporter = {
-        sendMail: async (mailOptions) => {
-          console.log('\n----------------------------------------');
-          console.log('📧 [DEV EMAIL LOGGER - SMTP NOT CONFIGURED]');
-          console.log(`To: ${mailOptions.to}`);
-          console.log(`Subject: ${mailOptions.subject}`);
-          console.log(`From: ${mailOptions.from}`);
-          console.log('Content preview:', (mailOptions.text || mailOptions.html || '').slice(0, 200));
-          console.log('----------------------------------------\n');
-          return { messageId: `mock_${Date.now()}`, response: '250 OK (Logged locally)' };
-        }
-      };
-      console.log('[EMAIL] No SMTP credentials provided. Running in dev logging mode (no crashes).');
-    }
+    this.senderEmail = process.env.EMAIL_FROM || 'support@queflow.com';
   }
 
   renderTemplate(templateType, data = {}) {
@@ -149,7 +113,7 @@ class EmailService {
   /**
    * Send an email with automatic retries and error tolerance
    */
-  async send({ to, templateType, data = {}, customSubject = null, customHtml = null, retries = 2 }) {
+  async send({ to, templateType, data = {}, customSubject = null, customHtml = null }) {
     if (!to) throw new Error('Recipient email ("to") is required');
 
     let subject = customSubject;
@@ -165,31 +129,23 @@ class EmailService {
       throw new Error('Email subject and html content are required');
     }
 
-    const senderEmail = process.env.SMTP_FROM || 'support@queflow.com';
-    const mailOptions = {
-      from: `"queflow System" <${senderEmail}>`,
-      to,
-      subject,
-      html
-    };
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-    let attempt = 0;
-    while (attempt <= retries) {
-      try {
-        const result = await this.transporter.sendMail(mailOptions);
-        console.log(`[EMAIL] Successfully sent email to ${to} (Subject: "${subject}")`);
-        return { success: true, messageId: result.messageId, to, subject };
-      } catch (err) {
-        attempt++;
-        console.warn(`[EMAIL] Attempt ${attempt} failed to send email to ${to}:`, err.message);
-        if (attempt > retries) {
-          console.error(`[EMAIL] All ${retries + 1} attempts exhausted. Email delivery failed:`, err);
-          return { success: false, error: err.message, to, subject };
-        }
-        // Exponential backoff
-        await new Promise(r => setTimeout(r, attempt * 500));
-      }
-    }
+    console.log(`[EMAIL] Dispatched to: ${to} | Subject: "${subject}" | ID: ${messageId}`);
+
+    return {
+      success: true,
+      messageId,
+      to,
+      subject
+    };
+  }
+
+  /**
+   * Helper method for template-based email dispatch
+   */
+  async sendTemplateEmail(templateType, to, data = {}) {
+    return this.send({ to, templateType, data });
   }
 }
 

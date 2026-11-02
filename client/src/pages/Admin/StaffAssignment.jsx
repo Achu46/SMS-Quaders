@@ -723,9 +723,26 @@ export default function StaffAssignment() {
         lastUpdatedBy:    userProfile?.name || userProfile?.email || 'Admin',
         lastUpdatedAt:    new Date().toISOString(),
         customData:       uploadedCustomData || {},
+        roleId:           editStaffData.roleId || selectedStaffToView.roleId || null,
       };
 
       await updateSubDocument(schoolId, 'teachers', selectedStaffToView.id, updateData);
+
+      // Sync roleId to Postgres User so staff permissions update in real-time
+      if (editStaffData.roleId) {
+        const backendUserId = selectedStaffToView.userId ||
+          (selectedStaffToView.email && backendStaffMap[selectedStaffToView.email.toLowerCase()]?.id) ||
+          (editStaffData.email && backendStaffMap[editStaffData.email.toLowerCase()]?.id) ||
+          (selectedStaffToView.staffId && backendStaffMap[selectedStaffToView.staffId]?.id);
+
+        if (backendUserId) {
+          try {
+            await api.put(`/staff/${backendUserId}/role`, { roleId: editStaffData.roleId });
+          } catch (roleErr) {
+            console.warn('Backend staff role sync notice:', roleErr.message);
+          }
+        }
+      }
       const updated = { ...selectedStaffToView, ...updateData };
       setSelectedStaffToView(updated);
       setIsStaffEditMode(false);

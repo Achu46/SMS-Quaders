@@ -82,7 +82,12 @@ router.post('/', authenticateToken, requireTenantAccess, requireModulePermission
 
 // GET /api/schools/:schoolId/attendance
 // Query Attendance records
-router.get('/', authenticateToken, requireTenantAccess, async (req, res) => {
+router.get('/', authenticateToken, requireTenantAccess, (req, res, next) => {
+  if (req.user && req.user.role === 'STAFF') {
+    return requireModulePermission('attendance', 'VIEW')(req, res, next);
+  }
+  next();
+}, async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { classId, date, session, studentId } = req.query;

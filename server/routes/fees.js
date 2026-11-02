@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const crypto = require('crypto');
-const { authenticateToken, requireTenantAccess, requireRole } = require('../middleware');
+const { authenticateToken, requireTenantAccess, requireRole, requirePermission } = require('../middleware');
 
 // =========================================================================
 // PAYMENT GATEWAY WEBHOOK (No JWT auth - verified cryptographically via HMAC)
@@ -135,7 +135,7 @@ router.get('/structures', authenticateToken, requireTenantAccess, async (req, re
 });
 
 // POST /api/schools/:schoolId/fees/structures
-router.post('/structures', authenticateToken, requireTenantAccess, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/structures', authenticateToken, requireTenantAccess, requirePermission('fees', 'CREATE'), async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { classId, name, amount, dueDate } = req.body;
@@ -219,7 +219,7 @@ router.get('/invoices', authenticateToken, requireTenantAccess, async (req, res)
 // PUT /api/schools/:schoolId/fees/invoices/:id/pay
 // RESTRICTED TO ADMIN / SUPER_ADMIN ONLY (for manual in-person cash receipts)
 // Online parent payments must go through verified webhook
-router.put('/invoices/:id/pay', authenticateToken, requireTenantAccess, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.put('/invoices/:id/pay', authenticateToken, requireTenantAccess, requirePermission('fees', 'EDIT'), async (req, res) => {
   try {
     const schoolId = req.schoolId;
     const { id } = req.params;
