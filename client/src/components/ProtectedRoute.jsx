@@ -36,7 +36,7 @@ const ProtectedRoute = ({ children, allowedRoles, moduleKey }) => {
   // If moduleKey is specified, check if user has read permission for this module
   if (moduleKey && userProfile && userProfile.role !== 'admin') {
     if (!canRead(moduleKey)) {
-      return <Navigate to="/unauthorized" replace />;
+      return <Navigate to="/unauthorized" state={{ from: moduleKey, reason: 'REVOKED' }} replace />;
     }
   }
 

@@ -393,9 +393,9 @@ router.post('/:id/invite/send-email', requirePermission('staff', 'EDIT'), async 
   }
 });
 
-// PATCH /api/staff/:id/role
+// PATCH / PUT /api/staff/:id/role
 // Update a staff member's assigned role
-router.patch('/:id/role', requirePermission('staff', 'EDIT'), async (req, res) => {
+const handleUpdateStaffRole = async (req, res) => {
   try {
     const prisma = req.prisma;
     const collegeId = req.user.schoolId;
@@ -496,7 +496,10 @@ router.patch('/:id/role', requirePermission('staff', 'EDIT'), async (req, res) =
     console.error('Update staff role error:', error);
     res.status(500).json({ error: 'Failed to update staff role' });
   }
-});
+};
+
+router.patch('/:id/role', requirePermission('staff', 'EDIT'), handleUpdateStaffRole);
+router.put('/:id/role', requirePermission('staff', 'EDIT'), handleUpdateStaffRole);
 
 // DELETE /api/staff/:id
 // Delete a staff member

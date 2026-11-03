@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { 
   LuShieldAlert, 
@@ -14,6 +14,9 @@ import { useAuth } from '../context/AuthContext';
 export default function Unauthorized() {
   const navigate = useNavigate();
   const { currentUser, userProfile } = useAuth();
+  const location = useLocation();
+  const revokedModule = location.state?.from;
+  const reason = location.state?.reason;
   const reducedMotion = useReducedMotion();
 
   const role = userProfile?.role?.toLowerCase();
@@ -96,7 +99,7 @@ export default function Unauthorized() {
 
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-100/70 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-bold uppercase tracking-wider mb-4">
             <LuShieldAlert size={14} />
-            <span>403 Access Restricted</span>
+            {reason === 'REVOKED' ? <span>Permission Revoked</span> : <span>403 Access Restricted</span>}
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-3">
@@ -104,7 +107,9 @@ export default function Unauthorized() {
           </h1>
 
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
-            You don't have permission to access this module. Please contact your school administrator if you believe this is an error.
+            {revokedModule
+              ? `You do not have active permission to access the "${revokedModule.replace(/-/g, ' ')}" module. Please contact your school administrator if your role requires this access.`
+              : "You don't have permission to access this module. Please contact your school administrator if you believe this is an error."}
           </p>
 
           {currentUser && userProfile && (

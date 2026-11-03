@@ -33,8 +33,8 @@ export const allNavItems = [
     icon: BookOpen,
     moduleKey: 'classes',
     subItems: [
-      { name: 'Class List', path: '/admin/classes', icon: BookOpen },
-      { name: 'Subject Management', path: '/admin/subjects', icon: BookOpen }
+      { name: 'Class List', path: '/admin/classes', icon: BookOpen, moduleKey: 'classes' },
+      { name: 'Subject Management', path: '/admin/subjects', icon: BookOpen, moduleKey: 'subjects' }
     ]
   },
   { name: 'Student Directory', path: '/admin/students', icon: Users, moduleKey: 'students' },
@@ -73,6 +73,21 @@ export default function AdminDashboard() {
   const [sidebarOrder, setSidebarOrder] = useState([]);
 
   useSchoolBranding(schoolData);
+
+  // Auto-redirect staff landing on /admin or /admin/ to their first permitted module
+  useEffect(() => {
+    if (!loading && isStaff && (location.pathname === '/admin' || location.pathname === '/admin/')) {
+      const firstPermitted = navItems.find(i => i.path && i.path !== '/admin');
+      if (firstPermitted) {
+        let target = firstPermitted.path;
+        if (firstPermitted.subItems && firstPermitted.moduleKey && !canRead(firstPermitted.moduleKey)) {
+          const firstSub = firstPermitted.subItems.find(sub => canRead(sub.moduleKey || sub.path.replace('/admin/', '')));
+          if (firstSub) target = firstSub.path;
+        }
+        navigate(target, { replace: true });
+      }
+    }
+  }, [loading, isStaff, location.pathname, navItems, navigate, canRead]);
 
   useEffect(() => {
     let unsubModules = null;
@@ -205,7 +220,7 @@ export default function AdminDashboard() {
       const adminOnlyKeys = ['setup', 'roles', 'links', 'api', 'billing', 'form-builder'];
       if (item.moduleKey && adminOnlyKeys.includes(item.moduleKey)) return false;
       
-      if (!item.moduleKey && item.name === 'Dashboard') return true;
+      if (!item.moduleKey && item.name === 'Dashboard') return false;
       if (item.moduleKey && canRead(item.moduleKey)) return true;
       if (item.subItems && item.subItems.some(sub => canRead(sub.moduleKey || sub.path.replace('/admin/', '')))) return true;
       return false;
@@ -311,7 +326,11 @@ export default function AdminDashboard() {
             return (
               <div key={item.name} className="space-y-1">
                 <NavLink
-                  to={isItemLocked ? '/admin/setup' : item.path}
+                  to={isItemLocked ? '/admin/setup' : (
+                    hasSubItems && item.moduleKey && !canRead(item.moduleKey)
+                      ? (item.subItems.find(sub => permissions === 'ALL' || canRead(sub.moduleKey || sub.path.replace('/admin/', '')))?.path || item.path)
+                      : item.path
+                  )}
                   end={item.exact}
                   onClick={(e) => {
                     if (isItemLocked) {
@@ -371,7 +390,9 @@ export default function AdminDashboard() {
                 {/* Sub Items */}
                 {hasSubItems && isExpanded && (
                   <div className="pl-9 pr-2 py-1 space-y-1 relative before:absolute before:left-5 before:top-0 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-slate-800 before:rounded-full">
-                    {item.subItems.map(sub => (
+                    {item.subItems
+                      .filter(sub => permissions === 'ALL' || canRead(sub.moduleKey || sub.path.replace('/admin/', '')))
+                      .map(sub => (
                       <NavLink
                         key={sub.name}
                         to={sub.path}

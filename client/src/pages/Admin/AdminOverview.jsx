@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import usePermissions from '../../hooks/usePermissions';
 import { getSubCollection, getNotices, subscribeToSubCollection, subscribeToNotices, subscribeToInvoices, cleanupOldChatAudio, updateSubDocument } from '../../firebase/firestore';
 import ConfirmModal from '../../components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -32,10 +33,16 @@ import {
 
 export default function AdminOverview() {
   const { userProfile } = useAuth();
+  const { permissions, canRead } = usePermissions();
   const schoolId = userProfile?.schoolId;
 
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin' ||
+                  userProfile?.role?.toLowerCase() === 'superadmin' ||
+                  userProfile?.role?.toLowerCase() === 'super_admin';
+
   const hasModule = (moduleKey) => {
-    if (userProfile?.role === 'superadmin') return true;
+    if (isAdmin) return true;
+    if (permissions !== 'ALL' && !canRead(moduleKey)) return false;
     return userProfile?.permittedModules?.includes(moduleKey) ?? true;
   };
 
@@ -235,6 +242,7 @@ export default function AdminOverview() {
   const allStatCards = [
     {
       id: 'students',
+      moduleKey: 'students',
       title: "Total Students",
       value: stats.students,
       icon: <GraduationCap className="h-6 w-6 text-blue-600" />,
@@ -243,6 +251,7 @@ export default function AdminOverview() {
     },
     {
       id: 'staff',
+      moduleKey: 'staff',
       title: "Teaching Staff",
       value: stats.staff,
       icon: <Users className="h-6 w-6 text-purple-600" />,
@@ -251,6 +260,7 @@ export default function AdminOverview() {
     },
     {
       id: 'classes',
+      moduleKey: 'classes',
       title: "Active Classes",
       value: stats.classes,
       icon: <BookOpen className="h-6 w-6 text-green-600" />,
@@ -259,6 +269,7 @@ export default function AdminOverview() {
     },
     {
       id: 'notices',
+      moduleKey: 'noticeboard',
       title: "School Notices",
       value: stats.notices,
       icon: <Bell className="h-6 w-6 text-amber-600" />,
@@ -267,7 +278,11 @@ export default function AdminOverview() {
     }
   ];
 
-  const visibleStatCards = allStatCards.filter(card => config.metrics[card.id] !== false);
+  const visibleStatCards = allStatCards.filter(card => {
+    if (config.metrics[card.id] === false) return false;
+    if (!isAdmin && permissions !== 'ALL' && card.moduleKey && !canRead(card.moduleKey)) return false;
+    return true;
+  });
 
   return (
     <div className="w-full pb-16">
@@ -279,14 +294,16 @@ export default function AdminOverview() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             
-            <button 
-              onClick={() => setIsConfigModalOpen(true)}
+            {isAdmin && (
+            <button onClick={() => setIsConfigModalOpen(true)}
               className="flex items-center gap-2 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-5 py-2.5 rounded-xl shadow-sm font-semibold transition-all active:scale-[0.98]"
             >
               <Settings size={18} />
               Customize
             </button>
+            )}
 
+            {isAdmin && (
             <div className="relative" ref={dropdownRef}>
               <button 
                 onClick={() => setIsInviteDropdownOpen(!isInviteDropdownOpen)}
@@ -317,6 +334,7 @@ export default function AdminOverview() {
                 </div>
               )}
             </div>
+            )}
 
             <div className="hidden sm:flex items-center gap-2 rounded-lg bg-white dark:bg-slate-900 px-4 py-2.5 shadow-sm border border-slate-200 dark:border-slate-700">
               <Calendar className="h-5 w-5 text-slate-400 dark:text-slate-300" />
@@ -352,7 +370,7 @@ export default function AdminOverview() {
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Pending Attendance Alerts */}
-        {pendingAttendanceAlerts.length > 0 && (
+        {(isAdmin || canRead('attendance')) && pendingAttendanceAlerts.length > 0 && (
           <div className="col-span-1 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-red-200 overflow-hidden">
             <div className="border-b border-red-100 px-6 py-4 bg-red-50/55 flex items-center justify-between">
               <h2 className="text-base font-bold text-red-800 flex items-center gap-2">
@@ -384,7 +402,7 @@ export default function AdminOverview() {
         )}
 
         {/* Recent Notices */}
-        {config.widgets.recentNotices !== false && (
+        {(isAdmin || canRead('noticeboard')) && config.widgets.recentNotices !== false && (
           <div className="col-span-1 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-700">
             <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-4">
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">Recent Notices</h2>
@@ -506,30 +524,39 @@ export default function AdminOverview() {
             </div>
             <div className="p-6 flex-1 flex flex-col justify-center">
               <div className="grid grid-cols-2 gap-4 h-full">
+                {(isAdmin || canRead('students')) && (
                 <button onClick={() => window.location.href = '/admin/students'} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-slate-700 hover:bg-primary-50 dark:hover:bg-slate-800 transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <UserPlus size={20} />
                   </div>
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 text-center">Add Student</span>
                 </button>
+                )}
+                {(isAdmin || canRead('staff')) && (
                 <button onClick={() => window.location.href = '/admin/staff'} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-slate-700 hover:bg-primary-50 dark:hover:bg-slate-800 transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Users size={20} />
                   </div>
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 text-center">Add Staff</span>
                 </button>
+                )}
+                {(isAdmin || canRead('attendance')) && (
                 <button onClick={() => window.location.href = '/admin/attendance'} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-slate-700 hover:bg-primary-50 dark:hover:bg-slate-800 transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <ClipboardCheck size={20} />
                   </div>
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 text-center">Mark Attendance</span>
                 </button>
+                )}
+                {(isAdmin || canRead('noticeboard')) && (
                 <button onClick={() => window.location.href = '/admin/notices'} className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary-200 dark:hover:border-slate-700 hover:bg-primary-50 dark:hover:bg-slate-800 transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <FileEdit size={20} />
                   </div>
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 text-center">Create Notice</span>
                 </button>
+                )}
+                {isAdmin && (
                 <button 
                   onClick={() => {
                     setConfirmModal({
@@ -558,13 +585,14 @@ export default function AdminOverview() {
                   </div>
                   <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 text-center">{isCleaningAudio ? 'Cleaning...' : 'Cleanup DB Space'}</span>
                 </button>
+                )}
               </div>
             </div>
           </div>
         )}
 
         {/* Attendance Summary */}
-        {config.widgets.attendanceSummary !== false && (
+        {(isAdmin || canRead('attendance')) && config.widgets.attendanceSummary !== false && (
           <div className="col-span-1 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col">
             <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-4 shrink-0">
               <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
