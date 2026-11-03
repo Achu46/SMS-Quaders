@@ -269,24 +269,10 @@ server.on('error', (err) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Quaders server running on port ${PORT}`);
   prisma.$connect()
-    .then(() => console.log('✅ PostgreSQL database connected successfully.'))
-    .catch(async (err) => {
-      const isLocal = (process.env.DATABASE_URL || '').includes('localhost') || (process.env.DATABASE_URL || '').includes('127.0.0.1');
-      if (isLocal && !process.env.NODE_ENV?.includes('prod')) {
-        try {
-          const { startLocalDatabase, isPortOpen } = require('./localDb');
-          const running = await isPortOpen(5432);
-          if (!running) {
-            console.log('🚀 Launching local embedded PostgreSQL on port 5432...');
-            await startLocalDatabase();
-            await prisma.$connect();
-            console.log('✅ PostgreSQL database connected successfully.');
-            return;
-          }
-        } catch (_) {}
-      }
-      console.warn('⚠️  [Database Warning] Could not connect to PostgreSQL database.');
+    .then(() => console.log('✅ Railway PostgreSQL database connected successfully.'))
+    .catch((err) => {
+      console.warn('⚠️  [Database Warning] Could not connect to Railway PostgreSQL database.');
       console.warn(`   DATABASE_URL: ${process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':***@') : 'Not set'}`);
-      console.warn('   Please ensure your PostgreSQL server is running or provide a valid connection string in server/.env');
+      console.warn('   Error:', err.message);
     });
 });
